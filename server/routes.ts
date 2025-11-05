@@ -3742,10 +3742,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ success: true, skipAuth: true });
       }
       
-      // NEW: Automatically withdraw ALL TON balance (ignore amount parameter)
-      const { walletAddress, comment } = req.body;
+      // Accept amount, payment details, and comment from request
+      const { amount, paymentDetails, comment } = req.body;
 
-      console.log('📝 Withdrawal request received (withdrawing all TON balance):', { userId, walletAddress, comment });
+      console.log('📝 Withdrawal request received:', { userId, amount, paymentDetails, comment });
 
       // Check for pending withdrawals
       const pendingWithdrawals = await db
@@ -3829,59 +3829,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // ✅ NEW: Check if user has invited at least 3 friends
-        const friendsInvited = user.friendsInvited || 0;
-        if (friendsInvited < 3) {
-          throw new Error('You need to invite at least 3 friends to unlock withdrawals.');
-        }
-
-        // Check if user has a saved TON wallet address
-        if (!user.cwalletId) {
-          throw new Error('No TON wallet address found. Please set up your TON wallet address first.');
-        }
-
-        // ✅ NEW: Check wallet ID uniqueness - prevent same wallet from being used by multiple users
-        const [existingWallet] = await tx
-          .select({ userId: users.id })
-          .from(users)
-          .where(and(
-            eq(users.cwalletId, user.cwalletId),
-            sql`${users.id} != ${userId}`
-          ))
-          .limit(1);
-
-        if (existingWallet) {
-          throw new Error('This TON wallet address is already in use by another user. Please use a unique TON wallet address.');
+        // Check if payment details (TON wallet) were provided
+        const walletToUse = paymentDetails || user.cwalletId;
+        if (!walletToUse) {
+          throw new Error('Please set up your TON wallet address first.');
         }
 
         const currentTonBalance = parseFloat(user.tonBalance || '0');
+        const withdrawAmount = parseFloat(amount || '0');
         
-        // Get minimum withdrawal from admin settings
-        const minimumWithdrawal = await storage.getAppSetting('minimumWithdrawal', 0.001);
-        const minWithdrawalTon = parseFloat(minimumWithdrawal);
+        // Validate withdrawal amount
+        if (!amount || withdrawAmount <= 0) {
+          throw new Error('Please enter a valid withdrawal amount.');
+        }
         
-        if (currentTonBalance < minWithdrawalTon) {
-          throw new Error(`You need at least ${minWithdrawalTon} TON to withdraw.`);
+        if (withdrawAmount > currentTonBalance) {
+          throw new Error('Insufficient balance for this withdrawal.');
         }
 
-        // ✅ CHANGED: Do NOT deduct balance immediately - wait for admin approval
-        // Balance will be deducted when admin approves the withdrawal
+        // ✅ No minimum withdrawal requirement
+        // ✅ No withdrawal fees
 
-        console.log(`📝 Creating withdrawal request for ${currentTonBalance} TON (balance NOT deducted yet)`);
+        console.log(`📝 Creating withdrawal request for ${withdrawAmount} TON (balance NOT deducted yet)`);
 
         // Create withdrawal request with deducted flag set to FALSE
-        // ✅ FIX: Automatically attach saved wallet ID from database using correct field name
         const withdrawalData: any = {
           userId,
-          amount: currentTonBalance.toFixed(8),
-          method: 'cwallet',
+          amount: withdrawAmount.toFixed(8),
+          method: 'mgb_wallet',
           status: 'pending',
-          deducted: false, // ✅ CHANGED: Balance will be deducted on admin approval
+          deducted: false, // Balance will be deducted on admin approval
           refunded: false,
+          comment: comment || '',
           details: {
-            paymentDetails: user.cwalletId, // ✅ Use paymentDetails field for admin dashboard
-            cwalletId: user.cwalletId, // Keep for backward compatibility
-            walletAddress: user.cwalletId // For backward compatibility
+            paymentDetails: walletToUse,
+            cwalletId: walletToUse,
+            walletAddress: walletToUse
           }
         };
 
@@ -3889,7 +3872,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         return { 
           withdrawal, 
-          withdrawnAmount: currentTonBalance, 
+          withdrawnAmount: withdrawAmount, 
           userTelegramId: user.telegram_id,
           username: user.username 
         };
