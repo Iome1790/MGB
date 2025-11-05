@@ -23,11 +23,11 @@ interface WithdrawDialogProps {
 export default function WithdrawDialog({ open, onOpenChange }: WithdrawDialogProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [withdrawAmount, setWithdrawAmount] = useState("");
 
-  const { data: user, refetch: refetchUser } = useQuery<User>({
+  const { data: user, refetch: refetchUser } = useQuery<any>({
     queryKey: ['/api/auth/user'],
     retry: false,
-    // CRITICAL FIX: Gate query by dialog visibility and refetch when dialog opens
     enabled: open,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
@@ -42,24 +42,22 @@ export default function WithdrawDialog({ open, onOpenChange }: WithdrawDialogPro
   const tonBalance = parseFloat(user?.tonBalance || "0");
   const MINIMUM_WITHDRAWAL = parseFloat(appSettings?.minimumWithdrawal || 0.001);
   const withdrawalCurrency = appSettings?.withdrawalCurrency || 'TON';
-  const friendsInvited = user?.friendsInvited || 0;
-  const MINIMUM_FRIENDS_REQUIRED = 3;
+  const walletAddress = user?.cwalletId || "";
 
   const { data: withdrawalsResponse, refetch: refetchWithdrawals } = useQuery<{ withdrawals?: any[] }>({
     queryKey: ['/api/withdrawals'],
     retry: false,
-    // Gate query by dialog visibility
     enabled: open,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     staleTime: 0,
   });
 
-  // Explicitly refetch fresh data whenever dialog opens
   useEffect(() => {
     if (open) {
       refetchUser();
       refetchWithdrawals();
+      setWithdrawAmount("");
     }
   }, [open, refetchUser, refetchWithdrawals]);
 
@@ -67,14 +65,14 @@ export default function WithdrawDialog({ open, onOpenChange }: WithdrawDialogPro
   const hasPendingWithdrawal = withdrawalsData.some(w => w.status === 'pending');
 
   const withdrawMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (amount: number) => {
       const response = await apiRequest('POST', '/api/withdrawals', {
-        amount: tonBalance
+        amount: amount
       });
       return response.json();
     },
     onSuccess: async () => {
-      showNotification("You have sent a withdrawal request.", "success");
+      showNotification("Withdrawal request submitted successfully!", "success");
       
       queryClient.invalidateQueries({ queryKey: ['/api/withdrawals'] });
       queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
@@ -86,70 +84,96 @@ export default function WithdrawDialog({ open, onOpenChange }: WithdrawDialogPro
         queryClient.refetchQueries({ queryKey: ['/api/withdrawals'] })
       ]);
       
+      setWithdrawAmount("");
       onOpenChange(false);
     },
     onError: (error: any) => {
-      showNotification(` ${error.message || "Failed to submit withdrawal request"}`, "error");
+      showNotification(error.message || "Failed to submit withdrawal request", "error");
     },
   });
 
   const handleWithdraw = () => {
-    if (friendsInvited < MINIMUM_FRIENDS_REQUIRED) {
-      showNotification(" You need to invite at least 3 friends to unlock withdrawals.", "error");
+    if (!walletAddress) {
+      showNotification("Please set up your TON wallet address first", "error");
+      return;
+    }
+
+    const amount = parseFloat(withdrawAmount);
+    
+    if (!amount || amount <= 0) {
+      showNotification("Please enter a valid withdrawal amount", "error");
       return;
     }
 
     if (hasPendingWithdrawal) {
-      showNotification(" Cannot create new request until current one is processed.", "error");
+      showNotification("You have a pending withdrawal. Please wait for it to be processed.", "error");
       return;
     }
 
-    if (tonBalance < MINIMUM_WITHDRAWAL) {
-      showNotification(` Minimum withdrawal ${MINIMUM_WITHDRAWAL} ${withdrawalCurrency}`, "error");
+    if (amount < MINIMUM_WITHDRAWAL) {
+      showNotification(`Minimum withdrawal: ${MINIMUM_WITHDRAWAL} ${withdrawalCurrency}`, "error");
       return;
     }
 
-    withdrawMutation.mutate();
+    if (amount > tonBalance) {
+      showNotification("Insufficient balance", "error");
+      return;
+    }
+
+    withdrawMutation.mutate(amount);
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onOpenChange={(newOpen) => {
-        // Prevent closing by clicking outside
-        if (!newOpen) return;
-        onOpenChange(newOpen);
-      }}
-    >
-      <DialogContent 
-        className="sm:max-w-md frosted-glass border border-white/10 rounded-2xl"
-        onInteractOutside={(e) => e.preventDefault()}
-        hideCloseButton
-      >
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md frosted-glass border border-white/10 rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="text-[#4cd3ff] text-lg">Withdraw TON</DialogTitle>
+          <DialogTitle className="text-[#4cd3ff] text-lg">Withdraw Funds</DialogTitle>
+          <DialogDescription className="text-gray-400">
+            Enter the amount you wish to withdraw
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="p-4 bg-[#0d0d0d] rounded-lg border border-[#4cd3ff]/20">
-            <div className="text-xs text-muted-foreground mb-1">Available Balance</div>
-            <div className="text-2xl font-bold text-[#4cd3ff]">{tonBalance.toFixed(4)} TON</div>
-            <div className="text-xs text-[#c0c0c0] mt-2">
-              You will withdraw your entire TON balance
-            </div>
+          {/* Withdrawal Amount Input */}
+          <div>
+            <Label htmlFor="withdraw-amount" className="text-white mb-2 block">
+              Enter amount to withdraw
+            </Label>
+            <Input
+              id="withdraw-amount"
+              type="number"
+              step="0.0001"
+              min={MINIMUM_WITHDRAWAL}
+              max={tonBalance}
+              placeholder={`Min: ${MINIMUM_WITHDRAWAL} ${withdrawalCurrency}`}
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(e.target.value)}
+              disabled={withdrawMutation.isPending}
+              className="bg-[#0d0d0d] border-[#4cd3ff]/30 text-white text-lg h-12"
+            />
           </div>
 
-          {friendsInvited < MINIMUM_FRIENDS_REQUIRED && (
+          {/* Current Balance Display */}
+          <div className="p-4 bg-[#0d0d0d] rounded-lg border border-[#4cd3ff]/20">
+            <div className="text-xs text-muted-foreground mb-1">Current Balance</div>
+            <div className="text-xl font-bold text-[#4cd3ff]">{tonBalance.toFixed(4)} {withdrawalCurrency}</div>
+          </div>
+
+          {/* Saved Wallet Address Display */}
+          {walletAddress ? (
+            <div className="p-4 bg-[#0d0d0d] rounded-lg border border-green-500/20">
+              <div className="text-xs text-muted-foreground mb-1">Saved TON Wallet Address</div>
+              <div className="text-sm font-mono text-green-400 break-all">{walletAddress}</div>
+            </div>
+          ) : (
             <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
               <p className="text-xs text-red-500 font-medium">
-                You need to invite at least 3 friends to unlock withdrawals.
-              </p>
-              <p className="text-xs text-red-400 mt-1">
-                Friends invited: {friendsInvited}/3
+                Please set up your TON wallet address before withdrawing
               </p>
             </div>
           )}
 
+          {/* Pending Withdrawal Warning */}
           {hasPendingWithdrawal && (
             <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
               <p className="text-xs text-yellow-500">
@@ -163,13 +187,14 @@ export default function WithdrawDialog({ open, onOpenChange }: WithdrawDialogPro
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={withdrawMutation.isPending}
             className="flex-1 bg-transparent border-white/20 text-white hover:bg-white/10"
           >
             Cancel
           </Button>
           <Button
             onClick={handleWithdraw}
-            disabled={withdrawMutation.isPending || hasPendingWithdrawal}
+            disabled={withdrawMutation.isPending || hasPendingWithdrawal || !walletAddress}
             className="flex-1 bg-[#4cd3ff] hover:bg-[#6ddeff] text-black font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {withdrawMutation.isPending ? (
@@ -177,7 +202,7 @@ export default function WithdrawDialog({ open, onOpenChange }: WithdrawDialogPro
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Processing...
               </>
-            ) : "Withdraw All"}
+            ) : "Withdraw"}
           </Button>
         </div>
       </DialogContent>
