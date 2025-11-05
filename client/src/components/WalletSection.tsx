@@ -62,7 +62,7 @@ export default function WalletSection({ padBalance, tonBalance, uid, isAdmin, on
     const minimumConvertPAD = appSettings?.minimumConvertPAD || 100000;
     
     if (padBalance < minimumConvertPAD) {
-      showNotification(`Minimum ${minimumConvertPAD.toLocaleString()} PAD required.`, "error");
+      showNotification(`Minimum ${minimumConvertPAD.toLocaleString()} MGB required.`, "error");
       return;
     }
 
@@ -78,7 +78,7 @@ export default function WalletSection({ padBalance, tonBalance, uid, isAdmin, on
             <div className="p-3 bg-[#1A1A1A] rounded-2xl border border-[#2A2A2A]">
               <div className="text-xs text-[#AAAAAA] mb-1 flex items-center gap-1">
                 <DiamondIcon size={12} withGlow />
-                PAD Balance
+                MGB Balance
               </div>
               <div className="text-white font-bold text-lg">{padBalance.toLocaleString()}</div>
             </div>
