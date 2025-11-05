@@ -4722,7 +4722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!promoCode) {
         return res.status(404).json({ 
           success: false, 
-          message: 'Invalid promo code' 
+          message: 'Promo code not found' 
         });
       }
       
@@ -4785,17 +4785,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('🎲 Auto-generated promo code:', finalCode);
       }
       
-      // Validate reward type
-      const finalRewardType = rewardType || 'PAD';
-      if (finalRewardType !== 'PAD' && finalRewardType !== 'PDZ') {
-        return res.status(400).json({ message: 'Reward type must be either PAD or PDZ' });
-      }
+      // Force reward type to TON only
+      const finalRewardType = 'TON';
       
       const promoCode = await storage.createPromoCode({
         code: finalCode.toUpperCase(),
         rewardAmount: rewardAmount.toString(),
         rewardType: finalRewardType,
-        rewardCurrency: finalRewardType === 'PDZ' ? 'PDZ' : 'TON',
+        rewardCurrency: 'TON',
         usageLimit: usageLimit || null,
         perUserLimit: perUserLimit || 1,
         isActive: true,
@@ -4804,7 +4801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ 
         success: true, 
-        message: `Promo code created successfully (${finalRewardType})`,
+        message: `Promo code created successfully (${rewardAmount} TON)`,
         promoCode 
       });
     } catch (error) {
