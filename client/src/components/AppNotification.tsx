@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { formatCurrency } from "@/lib/utils";
 
 export type NotificationType = "success" | "error" | "info";
@@ -8,7 +7,6 @@ interface NotificationData {
   message: string;
   type?: NotificationType;
   amount?: number;
-  duration?: number;
 }
 
 let notificationQueue: NotificationData[] = [];
@@ -34,20 +32,18 @@ export default function AppNotification() {
     setType(notification.type || "success");
     setIsVisible(true);
 
-    const displayDuration = notification.duration || 1500;
-
     setTimeout(() => {
       setIsVisible(false);
       setTimeout(() => {
         isDisplaying = false;
         showNextNotification();
       }, 300);
-    }, displayDuration);
+    }, 2000);
   };
 
   useEffect(() => {
     const handleNotification = (event: CustomEvent<NotificationData>) => {
-      const { message: msg, type: notifType, amount, duration } = event.detail;
+      const { message: msg, type: notifType, amount } = event.detail;
       
       let finalMessage = msg;
       if (amount !== undefined) {
@@ -74,7 +70,7 @@ export default function AppNotification() {
         }
       }
       
-      notificationQueue.push({ message: finalMessage, type: notifType, duration });
+      notificationQueue.push({ message: finalMessage, type: notifType });
       showNextNotification();
     };
 
@@ -86,6 +82,19 @@ export default function AppNotification() {
   }, []);
 
   if (!isVisible) return null;
+
+  const getBackgroundColor = () => {
+    switch (type) {
+      case "success":
+        return "bg-gradient-to-r from-purple-600 to-purple-500";
+      case "error":
+        return "bg-gradient-to-r from-red-600 to-red-500";
+      case "info":
+        return "bg-gradient-to-r from-blue-600 to-blue-500";
+      default:
+        return "bg-gradient-to-r from-purple-600 to-purple-500";
+    }
+  };
 
   const getIcon = () => {
     switch (type) {
@@ -100,13 +109,11 @@ export default function AppNotification() {
     }
   };
 
-  const notificationElement = (
+  return (
     <div 
-      className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] px-4 py-3 rounded-xl shadow-2xl text-white font-medium text-sm flex items-center gap-2 animate-slideDown max-w-[90vw]"
+      className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] px-4 py-3 rounded-xl shadow-2xl ${getBackgroundColor()} text-white font-medium text-sm flex items-center gap-2 animate-slideDown max-w-[90vw]`}
       style={{
-        backgroundColor: '#1534A1',
-        animation: isVisible ? "slideDown 0.3s ease-out" : "slideUp 0.3s ease-out",
-        pointerEvents: 'auto'
+        animation: isVisible ? "slideDown 0.3s ease-out" : "slideUp 0.3s ease-out"
       }}
     >
       <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white/20 flex-shrink-0">
@@ -115,13 +122,11 @@ export default function AppNotification() {
       <span className="whitespace-nowrap">{message}</span>
     </div>
   );
-
-  return createPortal(notificationElement, document.body);
 }
 
-export function showNotification(message: string, type: NotificationType = "success", amount?: number, duration?: number) {
+export function showNotification(message: string, type: NotificationType = "success", amount?: number) {
   const event = new CustomEvent('appNotification', { 
-    detail: { message, type, amount, duration } 
+    detail: { message, type, amount } 
   });
   window.dispatchEvent(event);
 }
