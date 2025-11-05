@@ -2,7 +2,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import AdWatchingSection from "@/components/AdWatchingSection";
-import StreakCard from "@/components/StreakCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -20,7 +19,6 @@ interface User {
 export default function Home() {
   const { toast } = useToast();
   const { user, isLoading, authenticateWithTelegramWebApp, isTelegramAuthenticating, telegramAuthError } = useAuth();
-  const [streakDialogOpen, setStreakDialogOpen] = React.useState(false);
 
   const { data: stats, isLoading: statsLoading } = useQuery<{
     todayEarnings?: string;
@@ -38,18 +36,6 @@ export default function Home() {
     retry: false,
   });
 
-  // Check if streak dialog should be shown (once per day)
-  React.useEffect(() => {
-    if (user) {
-      const today = new Date().toISOString().split('T')[0];
-      const lastShown = localStorage.getItem('streakDialogShown');
-      
-      // Show dialog if not shown today
-      if (lastShown !== today) {
-        setTimeout(() => setStreakDialogOpen(true), 500);
-      }
-    }
-  }, [user]);
 
 
   if (isLoading) {
@@ -215,13 +201,6 @@ export default function Home() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Streak Dialog - Shows once per day */}
-        <StreakCard 
-          user={user as User} 
-          open={streakDialogOpen}
-          onOpenChange={setStreakDialogOpen}
-        />
       </main>
     </Layout>
   );

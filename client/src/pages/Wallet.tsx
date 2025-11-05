@@ -90,10 +90,12 @@ export default function Wallet() {
   const walletDetails = walletDetailsData?.walletDetails;
 
   // Fetch user's withdrawal history
-  const { data: withdrawalsData = [], isLoading: withdrawalsLoading } = useQuery<WithdrawalRequest[]>({
+  const { data: withdrawalsResponse, isLoading: withdrawalsLoading } = useQuery<{ success: boolean; withdrawals: WithdrawalRequest[] }>({
     queryKey: ['/api/withdrawals'],
     retry: false,
   });
+
+  const withdrawalsData = withdrawalsResponse?.withdrawals || [];
 
   // Check if there's a pending withdrawal
   const hasPendingWithdrawal = withdrawalsData.some(w => w.status === 'pending');
@@ -394,9 +396,9 @@ export default function Wallet() {
                 <form onSubmit={handleSaveWallet} className="space-y-4">
                   {/* TON Section */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold">TON</Label>
+                    <Label className="text-sm font-semibold">TON Wallet</Label>
                     <Input
-                      placeholder="Address"
+                      placeholder="TON Wallet Address"
                       value={walletForm.tonWalletAddress}
                       onChange={(e) => updateWalletForm('tonWalletAddress', e.target.value)}
                     />
@@ -404,16 +406,6 @@ export default function Wallet() {
                       placeholder="Optional comment"
                       value={walletForm.tonWalletComment}
                       onChange={(e) => updateWalletForm('tonWalletComment', e.target.value)}
-                    />
-                  </div>
-
-                  {/* Telegram Section */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold">TELEGRAM</Label>
-                    <Input
-                      placeholder="Username for premium/stars"
-                      value={walletForm.telegramUsername}
-                      onChange={(e) => updateWalletForm('telegramUsername', e.target.value)}
                     />
                   </div>
 
