@@ -3192,11 +3192,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Minimum 500 clicks required
-      if (totalClicksRequired < 500) {
+      // Fetch configurable minimum clicks from admin settings (default: 100)
+      const taskClickMinSetting = await db.select().from(adminSettings).where(eq(adminSettings.settingKey, 'task_click_minimum')).limit(1);
+      const minimumClicksRequired = taskClickMinSetting[0]?.settingValue ? parseInt(taskClickMinSetting[0].settingValue) : 100;
+
+      // Validate minimum clicks required
+      if (totalClicksRequired < minimumClicksRequired) {
         return res.status(400).json({
           success: false,
-          message: "Minimum 500 clicks required"
+          message: `Minimum ${minimumClicksRequired} clicks required`
         });
       }
 
@@ -3811,7 +3815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const setting = allSettings.find(s => s.settingKey === key);
           return setting?.settingValue || defaultValue;
         };
-        const minimumWithdrawalTON = parseFloat(getSetting('minimum_withdrawal', '0.5'));
+        const minimumWithdrawalTON = parseFloat(getSetting('minimum_withdrawal', '0.1'));
         const minimumWithdrawalMGB = minimumWithdrawalTON * 5000000; // Convert to MGB for display (5,000,000 MGB = 1 TON)
         
         // Validate minimum withdrawal amount
