@@ -746,6 +746,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         success: true, 
         rewardPAD: adRewardPAD,
+        earning: { amount: adRewardTON },
         newBalance: updatedUser?.balance || user.balance || "0",
         adsWatchedToday: newAdsWatchedToday,
         adsWatched: totalAdsWatched
@@ -757,10 +758,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Return success anyway to prevent error notification from showing
       // The user watched the ad, so we should acknowledge it
-      const adRewardPAD = Math.round(parseFloat("0.00010000") * 10000000);
+      const fallbackRewardTON = "0.00010000";
+      const adRewardPAD = Math.round(parseFloat(fallbackRewardTON) * 10000000);
       res.json({ 
         success: true, 
         rewardPAD: adRewardPAD,
+        earning: { amount: fallbackRewardTON },
         newBalance: "0",
         adsWatchedToday: 0,
         warning: "Reward processing encountered an issue but was acknowledged"
@@ -3182,6 +3185,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({
           success: false,
           message: "Minimum 500 clicks required"
+        });
+      }
+
+      // Validate Telegram link - MUST be t.me link only
+      const trimmedLink = link.trim();
+      const isTelegramLink = trimmedLink.startsWith('https://t.me/') || trimmedLink.startsWith('t.me/');
+      
+      if (!isTelegramLink) {
+        return res.status(400).json({
+          success: false,
+          message: "⚠️ Only Telegram links are allowed for tasks."
         });
       }
 
