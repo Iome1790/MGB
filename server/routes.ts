@@ -128,11 +128,11 @@ function broadcastUpdate(update: any) {
   return messagesSent;
 }
 
-// Check if user is admin
+// Check if user is admin - checks both TELEGRAM_ADMIN_ID and ADMIN_ID environment variables
 const isAdmin = (telegramId: string): boolean => {
-  const adminId = process.env.TELEGRAM_ADMIN_ID;
+  const adminId = process.env.TELEGRAM_ADMIN_ID || process.env.ADMIN_ID;
   if (!adminId) {
-    console.warn('⚠️ TELEGRAM_ADMIN_ID not set - admin access disabled');
+    console.warn('⚠️ TELEGRAM_ADMIN_ID or ADMIN_ID not set - admin access disabled');
     return false;
   }
   // Ensure both values are strings for comparison
@@ -4860,9 +4860,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.user.id;
       const user = await storage.getUser(userId);
       
-      // Check if user is admin
-      const isAdmin = user?.telegram_id === "6653616672" || (user?.telegram_id === "123456789" && process.env.NODE_ENV === 'development');
-      if (!isAdmin) {
+      // Check if user is admin using environment variable
+      const adminId = process.env.TELEGRAM_ADMIN_ID || process.env.ADMIN_ID;
+      const isAdminUser = (user?.telegram_id && adminId && String(user.telegram_id) === String(adminId)) || 
+                          (user?.telegram_id === "123456789" && process.env.NODE_ENV === 'development');
+      if (!isAdminUser) {
         return res.status(403).json({ message: 'Unauthorized: Admin access required' });
       }
       

@@ -1699,7 +1699,11 @@ export class DatabaseStorage implements IStorage {
   // Ensure admin user with unlimited balance exists for production deployment
   async ensureAdminUserExists(): Promise<void> {
     try {
-      const adminTelegramId = '6653616672';
+      const adminTelegramId = process.env.TELEGRAM_ADMIN_ID || process.env.ADMIN_ID;
+      if (!adminTelegramId) {
+        console.log('⚠️ No admin user configured - skipping admin setup (set TELEGRAM_ADMIN_ID or ADMIN_ID)');
+        return;
+      }
       const maxBalance = '99.999'; // Admin balance as requested
       
       // Check if admin user already exists
