@@ -39,7 +39,6 @@ export const users = pgTable("users", {
   personalCode: text("personal_code"),
   balance: decimal("balance", { precision: 12, scale: 8 }).default("0"),
   tonBalance: decimal("ton_balance", { precision: 12, scale: 8 }).default("0"),
-  pdzBalance: decimal("pdz_balance", { precision: 12, scale: 8 }).default("0"),
   withdrawBalance: decimal("withdraw_balance", { precision: 12, scale: 8 }),
   totalEarnings: decimal("total_earnings", { precision: 12, scale: 8 }),
   totalEarned: decimal("total_earned", { precision: 12, scale: 8 }).default("0"),
@@ -144,7 +143,7 @@ export const promoCodes = pgTable("promo_codes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   code: varchar("code").notNull().unique(),
   rewardAmount: decimal("reward_amount", { precision: 10, scale: 8 }).notNull(),
-  rewardType: varchar("reward_type").default('PAD').notNull(), // 'PAD' or 'PDZ'
+  rewardType: varchar("reward_type").default('TON').notNull(), // 'MGB' or 'TON'
   rewardCurrency: varchar("reward_currency").default('USDT'),
   usageLimit: integer("usage_limit"),
   usageCount: integer("usage_count").default(0),
@@ -236,7 +235,7 @@ export const taskClicks = pgTable("task_clicks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   taskId: varchar("task_id").references(() => advertiserTasks.id, { onDelete: 'cascade' }).notNull(),
   publisherId: varchar("publisher_id").references(() => users.id).notNull(),
-  rewardAmount: decimal("reward_amount", { precision: 12, scale: 8 }).default("0.0001750").notNull(), // 1750 PAD = 0.000175 TON
+  rewardAmount: decimal("reward_amount", { precision: 12, scale: 8 }).default("0.0001750").notNull(), // 1750 MGB = 0.000175 TON
   clickedAt: timestamp("clicked_at").defaultNow(),
 }, (table) => [
   unique("task_clicks_unique").on(table.taskId, table.publisherId),
