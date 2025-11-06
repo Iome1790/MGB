@@ -3880,7 +3880,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const currentBalanceTON = parseFloat(user.balance || '0');
         // User enters amount in MGB from frontend, convert to TON for validation
         const withdrawAmountMGB = parseFloat(amount || '0');
-        const withdrawAmountTON = withdrawAmountMGB / 10000000; // Convert MGB to TON
+        const withdrawAmountTON = withdrawAmountMGB / 5000000; // Convert MGB to TON (5,000,000 MGB = 1 TON)
         
         // Validate withdrawal amount
         if (!amount || withdrawAmountMGB <= 0) {
@@ -3898,7 +3898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return setting?.settingValue || defaultValue;
         };
         const minimumWithdrawalTON = parseFloat(getSetting('minimum_withdrawal', '0.5'));
-        const minimumWithdrawalMGB = minimumWithdrawalTON * 10000000; // Convert to MGB for display
+        const minimumWithdrawalMGB = minimumWithdrawalTON * 5000000; // Convert to MGB for display (5,000,000 MGB = 1 TON)
         
         // Validate minimum withdrawal amount
         if (withdrawAmountTON < minimumWithdrawalTON) {

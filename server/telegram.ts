@@ -3,12 +3,12 @@ import TelegramBot from 'node-telegram-bot-api';
 import { storage } from './storage';
 
 const isAdmin = (telegramId: string): boolean => {
-  const adminId = process.env.TELEGRAM_ADMIN_ID;
-  return adminId === telegramId;
+  const adminId = process.env.ADMIN_ID || process.env.TELEGRAM_ADMIN_ID;
+  return adminId && String(adminId) === String(telegramId);
 };
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_ADMIN_ID = process.env.TELEGRAM_ADMIN_ID;
+const TELEGRAM_ADMIN_ID = process.env.ADMIN_ID || process.env.TELEGRAM_ADMIN_ID;
 
 // State management for admin rejection flow
 const pendingRejections = new Map<string, {
@@ -282,7 +282,38 @@ export async function sendUserTelegramNotification(userId: string, message: stri
   }
 }
 
-export function formatWelcomeMessage(): { message: string; inlineKeyboard: any } {
+export function formatWelcomeMessage(telegramId?: string): { message: string; inlineKeyboard: any } {
+  const isAdminUser = telegramId ? isAdmin(telegramId) : false;
+  
+  if (isAdminUser) {
+    const message = `⚙️ Admin Control Panel`;
+    
+    const inlineKeyboard = {
+      inline_keyboard: [
+        [
+          {
+            text: "🕓 Pending Withdrawal",
+            callback_data: "admin_pending_withdrawals"
+          }
+        ],
+        [
+          {
+            text: "📢 Advertise",
+            callback_data: "admin_advertise"
+          }
+        ],
+        [
+          {
+            text: "🔄 Refresh",
+            callback_data: "refresh_stats"
+          }
+        ]
+      ]
+    };
+    
+    return { message, inlineKeyboard };
+  }
+  
   const message = `👋 Welcome to Paid Adz!
 
 🚀 You've entered the world of Paid Adz, where every ad you watch earns you PAD Tokens — your gateway to real TON rewards.
@@ -315,7 +346,7 @@ export function formatWelcomeMessage(): { message: string; inlineKeyboard: any }
 }
 
 export async function sendWelcomeMessage(userId: string): Promise<boolean> {
-  const { message, inlineKeyboard } = formatWelcomeMessage();
+  const { message, inlineKeyboard } = formatWelcomeMessage(userId);
   return await sendUserTelegramNotification(userId, message, inlineKeyboard);
 }
 
@@ -383,12 +414,29 @@ export async function handleTelegramMessage(update: any): Promise<boolean> {
         try {
           const stats = await storage.getAppStats();
           
-          const statsMessage = `📊 Application Stats\n\n👥 Total Registered Users: ${stats.totalUsers.toLocaleString()}\n👤 Active Users Today: ${stats.activeUsersToday}\n🔗 Total Friends Invited: ${stats.totalInvites.toLocaleString()}\n\n💰 Total Earnings (All Users): $${parseFloat(stats.totalEarnings).toFixed(2)}\n💎 Total Referral Earnings: $${parseFloat(stats.totalReferralEarnings).toFixed(2)}\n🏦 Total Payouts: $${parseFloat(stats.totalPayouts).toFixed(2)}\n\n🚀 Growth (Last 24h): +${stats.newUsersLast24h} new users`;
+          const statsMessage = `⚙️ Admin Control Panel\n\n📊 Application Stats\n\n👥 Total Registered Users: ${stats.totalUsers.toLocaleString()}\n👤 Active Users Today: ${stats.activeUsersToday}\n🔗 Total Friends Invited: ${stats.totalInvites.toLocaleString()}\n\n💰 Total Earnings (All Users): $${parseFloat(stats.totalEarnings).toFixed(2)}\n💎 Total Referral Earnings: $${parseFloat(stats.totalReferralEarnings).toFixed(2)}\n🏦 Total Payouts: $${parseFloat(stats.totalPayouts).toFixed(2)}\n\n🚀 Growth (Last 24h): +${stats.newUsersLast24h} new users`;
           
-          const refreshButton = {
-            inline_keyboard: [[
-              { text: "🔃 Refresh 🔄", callback_data: "refresh_stats" }
-            ]]
+          const adminButtons = {
+            inline_keyboard: [
+              [
+                {
+                  text: "🕓 Pending Withdrawal",
+                  callback_data: "admin_pending_withdrawals"
+                }
+              ],
+              [
+                {
+                  text: "📢 Advertise",
+                  callback_data: "admin_advertise"
+                }
+              ],
+              [
+                {
+                  text: "🔄 Refresh",
+                  callback_data: "refresh_stats"
+                }
+              ]
+            ]
           };
           
           // Answer callback query and edit message
@@ -406,7 +454,7 @@ export async function handleTelegramMessage(update: any): Promise<boolean> {
               message_id: callbackQuery.message.message_id,
               text: statsMessage,
               parse_mode: 'HTML',
-              reply_markup: refreshButton
+              reply_markup: adminButtons
             })
           });
         } catch (error) {
