@@ -2674,16 +2674,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!cwalletId || !cwalletId.trim()) {
         return res.status(400).json({
           success: false,
-          message: 'Please enter a valid TON wallet address'
+          message: 'Please enter a valid wallet'
         });
       }
       
-      // Validate TON wallet address (must start with UQ or EQ)
-      if (!/^(UQ|EQ)[A-Za-z0-9_-]{46}$/.test(cwalletId.trim())) {
+      // Validate TON wallet address format:
+      // - Must start with UQ or EQ
+      // - Total length: 48-66 characters
+      // - Only base64url symbols (A-Z, a-z, 0-9, _, -)
+      // - No spaces, emojis, or plain numbers
+      const walletRegex = /^(UQ|EQ)[A-Za-z0-9_-]{46,64}$/;
+      const trimmedWallet = cwalletId.trim();
+      
+      if (!walletRegex.test(trimmedWallet)) {
         console.log('🚫 Invalid TON wallet address format');
         return res.status(400).json({
           success: false,
-          message: 'Please enter a valid TON wallet address'
+          message: 'Please enter a valid wallet'
         });
       }
       
@@ -2766,16 +2773,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!walletId || !walletId.trim()) {
         return res.status(400).json({
           success: false,
-          message: 'Missing TON wallet address'
+          message: 'Please enter a valid wallet'
         });
       }
       
-      // Validate TON wallet address (must start with UQ or EQ)
-      if (!/^(UQ|EQ)[A-Za-z0-9_-]{46}$/.test(walletId.trim())) {
+      // Validate TON wallet address format:
+      // - Must start with UQ or EQ
+      // - Total length: 48-66 characters
+      // - Only base64url symbols (A-Z, a-z, 0-9, _, -)
+      // - No spaces, emojis, or plain numbers
+      const walletRegex = /^(UQ|EQ)[A-Za-z0-9_-]{46,64}$/;
+      const trimmedWallet = walletId.trim();
+      
+      if (!walletRegex.test(trimmedWallet)) {
         console.log('🚫 Invalid TON wallet address format');
         return res.status(400).json({
           success: false,
-          message: 'Please enter a valid TON wallet address'
+          message: 'Please enter a valid wallet'
         });
       }
       
@@ -2859,16 +2873,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!newWalletId || !newWalletId.trim()) {
         return res.status(400).json({
           success: false,
-          message: 'Please enter a valid TON wallet address'
+          message: 'Please enter a valid wallet'
         });
       }
       
-      // Validate TON wallet address (must start with UQ or EQ)
-      if (!/^(UQ|EQ)[A-Za-z0-9_-]{46}$/.test(newWalletId.trim())) {
+      // Validate TON wallet address format:
+      // - Must start with UQ or EQ
+      // - Total length: 48-66 characters
+      // - Only base64url symbols (A-Z, a-z, 0-9, _, -)
+      // - No spaces, emojis, or plain numbers
+      const walletRegex = /^(UQ|EQ)[A-Za-z0-9_-]{46,64}$/;
+      const trimmedNewWallet = newWalletId.trim();
+      
+      if (!walletRegex.test(trimmedNewWallet)) {
         console.log('🚫 Invalid TON wallet address format');
         return res.status(400).json({
           success: false,
-          message: 'Please enter a valid TON wallet address'
+          message: 'Please enter a valid wallet'
         });
       }
       
@@ -3853,12 +3874,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error('Please set up your MGB wallet address first.');
         }
 
-        // FIX BUG #5: Validate MGB wallet address format (UQ or EQ prefix, 48 chars total)
-        const mgbWalletRegex = /^(UQ|EQ)[A-Za-z0-9_-]{46}$/;
-        // Guard against undefined walletToUse before calling trim
+        // Validate wallet address format:
+        // - Must start with UQ or EQ
+        // - Total length: 48-66 characters
+        // - Only base64url symbols (A-Z, a-z, 0-9, _, -)
+        // - No spaces, emojis, or plain numbers
+        const mgbWalletRegex = /^(UQ|EQ)[A-Za-z0-9_-]{46,64}$/;
         const walletAddress = walletToUse ? walletToUse.trim() : '';
-        if (!mgbWalletRegex.test(walletAddress)) {
-          throw new Error('Invalid MGB wallet address format. Please enter a valid MGB address starting with UQ or EQ.');
+        if (!walletAddress || !mgbWalletRegex.test(walletAddress)) {
+          throw new Error('Please enter a valid wallet');
         }
 
         // User's balance is stored in TON internally
@@ -3994,26 +4018,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const errorMessage = error instanceof Error ? error.message : 'Failed to create withdrawal request';
       
-      // Return 400 for validation errors, 500 for others
-      const validationErrors = [
-        'Insufficient TON balance',
-        'Insufficient balance for this withdrawal',
-        'User not found',
-        'Please set up your TON wallet address first',
-        'Invalid TON wallet address format',
-        'Please enter a valid withdrawal amount',
-        'Minimum withdrawal amount is',
-        'Cannot create new request until current one is processed',
-        'Account is banned',
-        'Withdrawal blocked - multiple accounts detected',
-        'This TON wallet address is already in use',
-        'already linked to another account',
-        'You need to invite at least',
-        'invite',
-        'friends to unlock withdrawals'
-      ];
-      
-      const isValidationError = validationErrors.some(ve => errorMessage.includes(ve));
+      // Return 400 for known validation errors, 500 for others
+      // Match exact error messages thrown by the code above
+      const isValidationError = 
+        errorMessage === 'User not found' ||
+        errorMessage === 'Please enter a valid wallet' ||
+        errorMessage === 'Please enter a valid withdrawal amount.' ||
+        errorMessage === 'Insufficient MGB balance for this withdrawal.' ||
+        errorMessage === 'Please set up your MGB wallet address first.' ||
+        errorMessage === 'Withdrawal blocked - multiple accounts detected on this device. This account has been banned.' ||
+        errorMessage.startsWith('Minimum withdrawal amount is') ||
+        errorMessage.startsWith('Cannot create new request') ||
+        errorMessage.startsWith('Account is banned:');
       
       if (isValidationError) {
         return res.status(400).json({ 
@@ -4022,12 +4038,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // For unexpected errors, return detailed message in development, generic in production
+      // For unexpected server errors, return generic user-friendly message
       res.status(500).json({ 
         success: false, 
-        message: process.env.NODE_ENV === 'development' 
-          ? `Failed to create withdrawal request: ${errorMessage}`
-          : 'Failed to create withdrawal request. Please try again or contact support.'
+        message: 'Failed to create withdrawal request. Please try again.'
       });
     }
   });
@@ -4167,7 +4181,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('❌ Error in /api/withdraw:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to process withdrawal';
-      res.status(500).json({ success: false, message: errorMessage });
+      
+      // Return 400 for known validation errors, 500 for others
+      // Match exact error messages thrown by the code above
+      const isValidationError = 
+        errorMessage === 'User not found' ||
+        errorMessage === 'You need at least 0.001 TON' ||
+        errorMessage === 'Withdrawal blocked - multiple accounts detected on this device. This account has been banned.' ||
+        errorMessage.startsWith('Account is banned:') ||
+        errorMessage.startsWith('Cannot create new request');
+      
+      if (isValidationError) {
+        return res.status(400).json({ 
+          success: false, 
+          message: errorMessage
+        });
+      }
+      
+      // For unexpected server errors, return generic user-friendly message
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to process withdrawal. Please try again.'
+      });
     }
   });
 
