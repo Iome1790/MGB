@@ -1,21 +1,18 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Diamond as DiamondIcon } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { showNotification } from "@/components/AppNotification";
-import { DiamondIcon } from "@/components/DiamondIcon";
-import { TonCoinIcon } from "@/components/TonCoinIcon";
 
 interface WalletSectionProps {
   padBalance: number;
-  tonBalance: number;
   uid: string;
   isAdmin?: boolean;
   onAdminClick?: () => void;
   onWithdraw: () => void;
 }
 
-export default function WalletSection({ padBalance, tonBalance, uid, isAdmin, onAdminClick, onWithdraw }: WalletSectionProps) {
+export default function WalletSection({ padBalance, uid, isAdmin, onAdminClick, onWithdraw }: WalletSectionProps) {
   const queryClient = useQueryClient();
 
   const { data: appSettings } = useQuery<any>({
@@ -73,22 +70,13 @@ export default function WalletSection({ padBalance, tonBalance, uid, isAdmin, on
     <Card className="minimal-card mb-3">
       <CardContent className="pt-4 pb-4">
         <div className="space-y-3">
-          {/* Balance Display */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 bg-[#1A1A1A] rounded-2xl border border-[#2A2A2A]">
-              <div className="text-xs text-[#AAAAAA] mb-1 flex items-center gap-1">
-                <DiamondIcon size={12} withGlow />
-                MGB Balance
-              </div>
-              <div className="text-white font-bold text-lg">{padBalance.toLocaleString()}</div>
+          {/* Balance Display - MGB Only */}
+          <div className="p-3 bg-[#1A1A1A] rounded-2xl border border-[#2A2A2A]">
+            <div className="text-xs text-[#AAAAAA] mb-1 flex items-center gap-1">
+              <DiamondIcon size={12} />
+              MGB Balance
             </div>
-            <div className="p-3 bg-[#1A1A1A] rounded-2xl border border-[#2A2A2A]">
-              <div className="text-xs text-[#AAAAAA] mb-1 flex items-center gap-1">
-                <TonCoinIcon size={12} />
-                TON Balance
-              </div>
-              <div className="text-white font-bold text-lg">{tonBalance.toFixed(4)}</div>
-            </div>
+            <div className="text-white font-bold text-lg">{padBalance.toLocaleString()}</div>
           </div>
 
           {/* Convert Button */}

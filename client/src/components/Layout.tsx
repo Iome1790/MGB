@@ -27,9 +27,8 @@ export default function Layout({ children }: LayoutProps) {
     { href: "/wallet", icon: Wallet, label: "Wallet" },
   ];
 
-  // Calculate balance in MGB and TON
+  // Calculate balance in MGB
   const balanceMGB = Math.round(parseFloat(user?.balance || "0") * 500000);
-  const balanceTON = (parseFloat(user?.balance || "0")).toFixed(4);
 
   return (
     <div className="min-h-screen bg-transparent">
