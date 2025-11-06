@@ -2,6 +2,28 @@
 
 CashWatch is a React-based web application designed for users to earn cryptocurrency by interacting with advertisements. It offers a gamified experience, including daily streaks, a multi-level referral program, and cryptocurrency withdrawal functionalities. The platform aims to provide an engaging and user-friendly method for cryptocurrency earning, built on a modern full-stack architecture with dynamically configurable settings via an admin dashboard.
 
+# Recent Changes (November 6, 2025)
+
+## Telegram Bot Admin Panel Updates
+- Updated welcome message for admin users to show "⚙️ Admin Control Panel" instead of regular welcome message
+- Replaced multiple inline buttons with 3 clean admin buttons:
+  - 🕓 Pending Withdrawal
+  - 📢 Advertise
+  - 🔄 Refresh
+- Removed hardcoded admin ID from `client/src/hooks/useAdmin.ts`
+- Admin authentication now uses `ADMIN_ID` or `TELEGRAM_ADMIN_ID` environment variable
+- Updated `server/telegram.ts` to check admin status using environment variable instead of hardcoded value
+
+## Environment Variables Required
+- `ADMIN_ID` or `TELEGRAM_ADMIN_ID`: Telegram user ID for admin access
+- `VITE_ADMIN_ID`: Frontend environment variable for admin panel access (should match backend ADMIN_ID)
+
+## MGB to TON Conversion Rate Update
+- Updated conversion rate from 10,000,000 MGB = 1 TON to 5,000,000 MGB = 1 TON
+- This means 500,000 MGB = 0.1 TON
+- Admin settings now display minimum withdrawal in MGB instead of TON for clarity
+- Backend continues to store values in TON for precision, with automatic conversion to/from MGB in the UI
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -42,7 +64,7 @@ Preferred communication style: Simple, everyday language.
 *   **Ad Watching System**: Users earn PAD per ad with cooldowns and minimum watch time. Rewards dynamically pulled from admin settings; notifications display actual MGB amount earned. Backend increments adsWatched and adsWatchedToday counters, synchronized with frontend stats.
 *   **Gamification**: Spin & Win system and Daily Streak rewards.
 *   **Referral Program**: Multi-level commission on referred users' ad earnings.
-*   **Withdrawal System**: MGB-based withdrawals (1 TON = 10,000,000 MGB internally), minimum friend invite requirement, admin approval, TON wallet address validation (UQ/EQ prefix, 48 characters).
+*   **Withdrawal System**: MGB-based withdrawals (1 TON = 5,000,000 MGB internally, or 500,000 MGB = 0.1 TON), minimum friend invite requirement, admin approval, TON wallet address validation (UQ/EQ prefix, 48 characters).
 *   **Currency System**: Earnings and tasks displayed as PAD (1 TON = 100,000 PAD internally). Withdrawals are exclusively in MGB. Internal database storage uses TON for precision.
 *   **Admin Controls**: Comprehensive settings for affiliate commission, wallet change fees, minimum withdrawal, task rewards, task creation cost, balance conversion, and broadcast functionality.
 *   **Task System**: Users can create tasks (e.g., join Telegram channels) with strict Telegram link validation (only https://t.me/ or t.me/ links allowed). Invalid links are rejected before TON/PDZ deduction to prevent user balance loss.
