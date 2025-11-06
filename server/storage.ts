@@ -1608,21 +1608,21 @@ export class DatabaseStorage implements IStorage {
       }
 
       const withdrawalAmount = parseFloat(withdrawal.amount);
-      const userTonBalance = parseFloat(user.tonBalance || '0');
+      const userMgbBalance = parseFloat(user.balance || '0');
 
-      // Verify user has sufficient TON balance
-      if (userTonBalance < withdrawalAmount) {
-        return { success: false, message: 'User has insufficient TON balance for withdrawal' };
+      // Verify user has sufficient MGB balance
+      if (userMgbBalance < withdrawalAmount) {
+        return { success: false, message: 'User has insufficient MGB balance for withdrawal' };
       }
 
-      console.log(`💰 Deducting TON balance now for approved withdrawal: ${withdrawalAmount} TON`);
-      console.log(`💰 Previous TON balance: ${userTonBalance} TON, New TON balance: ${(userTonBalance - withdrawalAmount).toFixed(8)} TON`);
+      console.log(`💰 Deducting MGB balance now for approved withdrawal: ${withdrawalAmount} MGB`);
+      console.log(`💰 Previous MGB balance: ${userMgbBalance} MGB, New MGB balance: ${(userMgbBalance - withdrawalAmount).toFixed(8)} MGB`);
 
-      // Deduct TON balance directly (not from PAD balance)
-      const newTonBalance = userTonBalance - withdrawalAmount;
+      // Deduct MGB balance (stored in balance field)
+      const newMgbBalance = userMgbBalance - withdrawalAmount;
       await db.update(users)
         .set({ 
-          tonBalance: newTonBalance.toString(),
+          balance: newMgbBalance.toString(),
           updatedAt: new Date()
         })
         .where(eq(users.id, withdrawal.userId));
@@ -1638,9 +1638,9 @@ export class DatabaseStorage implements IStorage {
       
       const [updatedWithdrawal] = await db.update(withdrawals).set(updateData).where(eq(withdrawals.id, withdrawalId)).returning();
       
-      console.log(`✅ Withdrawal #${withdrawalId} approved - TON balance deducted — OK ✅`);
+      console.log(`✅ Withdrawal #${withdrawalId} approved - MGB balance deducted — OK ✅`);
       
-      return { success: true, message: 'Withdrawal approved and processed', withdrawal: updatedWithdrawal };
+      return { success: true, message: 'Withdrawal approved and sent successfully', withdrawal: updatedWithdrawal };
     } catch (error) {
       console.error('Error approving withdrawal:', error);
       return { success: false, message: 'Error processing withdrawal approval' };
