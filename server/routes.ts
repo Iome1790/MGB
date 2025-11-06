@@ -3770,10 +3770,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use transaction to ensure atomicity and prevent race conditions
       const newWithdrawal = await db.transaction(async (tx) => {
-        // Lock user row and get TON balance, wallet ID, friendsInvited, telegram_id, and device info (SELECT FOR UPDATE)
+        // Lock user row and get MGB balance, wallet ID, friendsInvited, telegram_id, and device info (SELECT FOR UPDATE)
         const [user] = await tx
           .select({ 
-            tonBalance: users.tonBalance,
+            balance: users.balance,
             cwalletId: users.cwalletId,
             friendsInvited: users.friendsInvited,
             telegram_id: users.telegram_id,
@@ -3833,53 +3833,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Check if payment details (TON wallet) were provided
+        // Check if payment details (MGB wallet) were provided
         const walletToUse = paymentDetails || user.cwalletId;
         if (!walletToUse) {
-          throw new Error('Please set up your TON wallet address first.');
+          throw new Error('Please set up your MGB wallet address first.');
         }
 
-        // FIX BUG #5: Validate TON wallet address format (UQ or EQ prefix, 48 chars total)
-        const tonWalletRegex = /^(UQ|EQ)[A-Za-z0-9_-]{46}$/;
+        // FIX BUG #5: Validate MGB wallet address format (UQ or EQ prefix, 48 chars total)
+        const mgbWalletRegex = /^(UQ|EQ)[A-Za-z0-9_-]{46}$/;
         // Guard against undefined walletToUse before calling trim
         const walletAddress = walletToUse ? walletToUse.trim() : '';
-        if (!tonWalletRegex.test(walletAddress)) {
-          throw new Error('Invalid TON wallet address format. Please enter a valid TON address starting with UQ or EQ.');
+        if (!mgbWalletRegex.test(walletAddress)) {
+          throw new Error('Invalid MGB wallet address format. Please enter a valid MGB address starting with UQ or EQ.');
         }
 
-        const currentTonBalance = parseFloat(user.tonBalance || '0');
-        const withdrawAmount = parseFloat(amount || '0');
+        // User's balance is stored in TON internally
+        const currentBalanceTON = parseFloat(user.balance || '0');
+        // User enters amount in MGB from frontend, convert to TON for validation
+        const withdrawAmountMGB = parseFloat(amount || '0');
+        const withdrawAmountTON = withdrawAmountMGB / 10000000; // Convert MGB to TON
         
         // Validate withdrawal amount
-        if (!amount || withdrawAmount <= 0) {
+        if (!amount || withdrawAmountMGB <= 0) {
           throw new Error('Please enter a valid withdrawal amount.');
         }
         
-        if (withdrawAmount > currentTonBalance) {
-          throw new Error('Insufficient balance for this withdrawal.');
+        if (withdrawAmountTON > currentBalanceTON) {
+          throw new Error('Insufficient MGB balance for this withdrawal.');
         }
 
-        // Get minimum withdrawal setting from admin settings
+        // Get minimum withdrawal setting from admin settings (stored in TON)
         const allSettings = await tx.select().from(adminSettings);
         const getSetting = (key: string, defaultValue: string): string => {
           const setting = allSettings.find(s => s.settingKey === key);
           return setting?.settingValue || defaultValue;
         };
-        const minimumWithdrawal = parseFloat(getSetting('minimum_withdrawal', '0.5'));
+        const minimumWithdrawalTON = parseFloat(getSetting('minimum_withdrawal', '0.5'));
+        const minimumWithdrawalMGB = minimumWithdrawalTON * 10000000; // Convert to MGB for display
         
         // Validate minimum withdrawal amount
-        if (withdrawAmount < minimumWithdrawal) {
-          throw new Error(`Minimum withdrawal amount is ${minimumWithdrawal} TON`);
+        if (withdrawAmountTON < minimumWithdrawalTON) {
+          throw new Error(`Minimum withdrawal amount is ${minimumWithdrawalMGB.toLocaleString()} MGB`);
         }
 
         // ✅ No withdrawal fees
 
-        console.log(`📝 Creating withdrawal request for ${withdrawAmount} TON (balance NOT deducted yet)`);
+        console.log(`📝 Creating withdrawal request for ${withdrawAmountMGB.toLocaleString()} MGB (${withdrawAmountTON.toFixed(8)} TON) - balance NOT deducted yet`);
 
         // Create withdrawal request with deducted flag set to FALSE
+        // Store the TON amount in database for internal consistency
         const withdrawalData: any = {
           userId,
-          amount: withdrawAmount.toFixed(8),
+          amount: withdrawAmountTON.toFixed(8), // Store as TON internally
           method: 'mgb_wallet',
           status: 'pending',
           deducted: false, // Balance will be deducted on admin approval
@@ -3888,7 +3893,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           details: {
             paymentDetails: walletToUse,
             cwalletId: walletToUse,
-            walletAddress: walletToUse
+            walletAddress: walletToUse,
+            requestedAmountMGB: withdrawAmountMGB // Store MGB amount for reference
           }
         };
 
@@ -3896,18 +3902,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         return { 
           withdrawal, 
-          withdrawnAmount: withdrawAmount, 
+          withdrawnAmountTON: withdrawAmountTON,
+          withdrawnAmountMGB: withdrawAmountMGB,
           userTelegramId: user.telegram_id,
           username: user.username 
         };
       });
 
-      console.log(`✅ Withdrawal request created: ${newWithdrawal.withdrawal.id} for user ${userId}, amount: ${newWithdrawal.withdrawnAmount} TON`);
+      console.log(`✅ Withdrawal request created: ${newWithdrawal.withdrawal.id} for user ${userId}, amount: ${newWithdrawal.withdrawnAmountMGB.toLocaleString()} MGB (${newWithdrawal.withdrawnAmountTON.toFixed(8)} TON)`);
 
       // ✅ Send withdrawal_requested notification via WebSocket
       sendRealtimeUpdate(userId, {
         type: 'withdrawal_requested',
-        amount: newWithdrawal.withdrawnAmount.toFixed(8),
+        amount: newWithdrawal.withdrawnAmountMGB.toLocaleString(),
         message: 'You have sent a withdrawal request.'
       });
 
@@ -4288,7 +4295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             type: 'withdrawal_approved',
             amount: result.withdrawal.amount,
             method: result.withdrawal.method,
-            message: `Your withdrawal of ${result.withdrawal.amount} TON has been approved and processed`
+            message: `Your withdrawal of ${result.withdrawal.amount} MGB has been approved and processed`
           });
           
           // Broadcast to all admins for instant UI update
@@ -4339,7 +4346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             type: 'withdrawal_rejected',
             amount: result.withdrawal.amount,
             method: result.withdrawal.method,
-            message: `Your withdrawal of ${result.withdrawal.amount} TON has been rejected`
+            message: `Your withdrawal of ${result.withdrawal.amount} MGB has been rejected`
           });
           
           // Broadcast to all admins for instant UI update
