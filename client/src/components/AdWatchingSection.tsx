@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { showNotification } from "@/components/AppNotification";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { MGB_TO_TON } from "@shared/constants";
 
 declare global {
   interface Window {
@@ -37,7 +38,7 @@ export default function AdWatchingSection({ user }: AdWatchingSectionProps) {
       
       // Calculate MGB amount from response (convert TON to MGB)
       // The reward amount comes from the backend based on admin settings
-      const mgbAmount = Math.round(parseFloat(data.earning?.amount || '0') * 5000000);
+      const mgbAmount = Math.round(parseFloat(data.earning?.amount || '0') * MGB_TO_TON);
       
       // Show reward notification with dynamic amount
       showNotification(`You received ${mgbAmount.toLocaleString()} MGB on your balance`, "success");
