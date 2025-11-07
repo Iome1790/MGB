@@ -2407,24 +2407,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isVerified = true;
         verificationMessage = 'Fix task completed';
       } else if (taskType === 'channel_visit') {
-        // Channel visit task requires channel membership verification
-        const botToken = process.env.TELEGRAM_BOT_TOKEN;
-        if (!botToken) {
-          console.log('⚠️ TELEGRAM_BOT_TOKEN not configured, skipping channel verification');
-          isVerified = false;
-          verificationMessage = 'Channel verification failed - bot token not configured';
-        } else {
-          // Extract channel username from promotion URL
-          const promotion = await storage.getPromotion(promotionId);
-          const channelMatch = promotion?.url?.match(/t\.me\/([^/?]+)/);
-          const channelName = channelMatch ? channelMatch[1] : 'PaidAdsNews';
-          
-          const isMember = await verifyChannelMembership(parseInt(telegramUserId), `@${channelName}`, botToken);
-          isVerified = isMember;
-          verificationMessage = isVerified 
-            ? 'Channel membership verified successfully' 
-            : `Please join the channel @${channelName} first to complete this task`;
-        }
+        // Channel visit task - directly credit reward without verification
+        isVerified = true;
+        verificationMessage = 'Channel visit task completed';
       } else if (taskType === 'share_link') {
         // Share link task requires user to have shared their affiliate link  
         const hasSharedToday = await storage.hasSharedLinkToday(userId);

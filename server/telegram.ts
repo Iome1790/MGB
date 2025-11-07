@@ -784,11 +784,11 @@ export async function handleTelegramMessage(update: any): Promise<boolean> {
             if (user && user.telegram_id) {
               const withdrawalDetails = result.withdrawal.details as any;
               const amount = result.withdrawal.amount;
-              const formattedAmount = formatTON(amount);
+              const amountMGB = Math.round(parseFloat(amount) * 10000000);
               const walletAddress = withdrawalDetails?.paymentDetails || 'N/A';
               
-              // Send user notification
-              const userMessage = `🔔 Payout was made in the amount of ${formattedAmount} TON to TON Wallet address:\n\n${walletAddress}`;
+              // Send user notification - new format
+              const userMessage = `✅ Your withdrawal of ${amountMGB} MGB has been completed successfully.\n🏦 Address: ${walletAddress}\n💸 Thank you for using our service!`;
               
               await sendUserTelegramNotification(user.telegram_id, userMessage);
             }
@@ -796,19 +796,18 @@ export async function handleTelegramMessage(update: any): Promise<boolean> {
             // Update admin message with formatted success details
             const withdrawalDetails = result.withdrawal.details as any;
             const amount = result.withdrawal.amount;
-            const formattedAmount = formatTON(amount);
+            const amountMGB = Math.round(parseFloat(amount) * 10000000);
             const walletAddress = withdrawalDetails?.paymentDetails || 'N/A';
             const userName = user?.firstName || user?.username || 'Unknown';
             const userId = user?.id || 'N/A';
-            const currentDate = new Date().toString();
+            const currentDate = new Date().toUTCString();
             
             const adminSuccessMessage = `✅ <b>Payout approved successfully</b>\n\n` +
               `👤 User: ${userName}\n` +
               `🆔 User ID: ${userId}\n` +
-              `💸 Amount: ${formattedAmount} TON\n` +
+              `💸 Amount: ${amountMGB} MGB\n` +
               `💳 Address: ${walletAddress}\n` +
-              `📅 Date: ${currentDate}\n` +
-              `🤖 Bot: @Paid_Adzbot`;
+              `📅 Date: ${currentDate}`;
             
             await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
               method: 'POST',
