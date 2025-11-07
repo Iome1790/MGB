@@ -612,13 +612,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const seasonBroadcastActive = getSetting('season_broadcast_active', 'false') === 'true';
       const affiliateCommission = parseFloat(getSetting('affiliate_commission', '10'));
       const walletChangeFeeTON = parseFloat(getSetting('wallet_change_fee', '0.0005'));
-      const minimumWithdrawal = parseFloat(getSetting('minimum_withdrawal', '0.5'));
+      const minimumWithdrawal = parseFloat(getSetting('minimum_withdrawal', '0.1'));
       const taskCostPerClick = parseFloat(getSetting('task_creation_cost', '0.0003'));
       const taskRewardPerClick = parseFloat(getSetting('task_per_click_reward', '0.0001750'));
+      const taskRewardPAD = parseInt(getSetting('task_reward_pad', '200'));
       const minimumConvert = parseFloat(getSetting('minimum_convert', '0.01'));
-      const withdrawalCurrency = getSetting('withdrawal_currency', 'TON');
+      const withdrawalCurrency = getSetting('withdrawal_currency', 'MGB');
       
-      // Convert TON values to MGB where needed (multiply by 5,000,000)
+      // Convert TON values to MGB where needed (multiply by 5,000,000: 500,000 MGB = 0.1 TON => 1 TON = 5,000,000 MGB)
       const rewardPerAdMGB = rewardPerAd;
       const taskRewardMGB = Math.round(taskRewardPerClick * 5000000);
       const minimumConvertMGB = Math.round(minimumConvert * 5000000);
@@ -635,6 +636,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         minimumWithdrawal,
         taskCostPerClick,
         taskRewardPerClick,
+        taskRewardPAD,
         taskRewardMGB,
         minimumConvert,
         minimumConvertMGB,
@@ -3330,11 +3332,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { taskId } = req.params;
       const { additionalClicks } = req.body;
 
-      // Validation - minimum 500 additional clicks
-      if (!additionalClicks || additionalClicks < 500) {
+      // Validation - minimum 100 additional clicks
+      if (!additionalClicks || additionalClicks < 100) {
         return res.status(400).json({
           success: false,
-          message: "Minimum 500 additional clicks required"
+          message: "Minimum 100 additional clicks required"
         });
       }
 
