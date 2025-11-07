@@ -20,7 +20,7 @@ import {
 import { db } from "./db";
 import { eq, sql, desc, and, gte } from "drizzle-orm";
 import crypto from "crypto";
-import { sendTelegramMessage, sendUserTelegramNotification, sendWelcomeMessage, handleTelegramMessage, setupTelegramWebhook, verifyChannelMembership } from "./telegram";
+import { sendTelegramMessage, sendUserTelegramNotification, sendWelcomeMessage, handleTelegramMessage, setupTelegramWebhook } from "./telegram";
 import { authenticateTelegram, requireAuth, optionalAuth } from "./auth";
 import { isAuthenticated } from "./replitAuth";
 import { config, getChannelConfig } from "./config";
@@ -2367,41 +2367,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let verificationMessage = '';
       
       if (taskType === 'channel' && channelUsername) {
-        // Verify channel membership using Telegram Bot API
-        const botToken = process.env.TELEGRAM_BOT_TOKEN;
-        if (!botToken) {
-          console.log('⚠️ TELEGRAM_BOT_TOKEN not configured, skipping channel verification');
-          isVerified = false;
-        } else {
-          const isMember = await verifyChannelMembership(parseInt(telegramUserId), `@${channelUsername}`, process.env.BOT_TOKEN || botToken);
-          isVerified = isMember;
-        }
-        verificationMessage = isVerified 
-          ? 'Channel membership verified successfully' 
-          : `Please join the channel @${channelUsername} first to complete this task`;
+        // Auto-verify channel tasks without checking membership
+        isVerified = true;
+        verificationMessage = 'Channel task completed';
       } else if (taskType === 'bot' && botUsername) {
         // For bot tasks, we'll consider them verified if the user is in the WebApp
         // (since they would need to interact with the bot to access the WebApp)
         isVerified = true;
         verificationMessage = 'Bot interaction verified';
       } else if (taskType === 'daily') {
-        // Daily tasks require channel membership if channelUsername is provided
-        if (channelUsername) {
-          const botToken = process.env.TELEGRAM_BOT_TOKEN;
-          if (!botToken) {
-            console.log('⚠️ TELEGRAM_BOT_TOKEN not configured, skipping channel verification');
-            isVerified = false;
-          } else {
-            const isMember = await verifyChannelMembership(parseInt(telegramUserId), `@${channelUsername}`, process.env.BOT_TOKEN || botToken);
-            isVerified = isMember;
-          }
-          verificationMessage = isVerified 
-            ? 'Daily task verification successful' 
-            : `Please join the channel @${channelUsername} first to complete this task`;
-        } else {
-          isVerified = true;
-          verificationMessage = 'Daily task completed';
-        }
+        // Auto-verify daily tasks without checking channel membership
+        isVerified = true;
+        verificationMessage = 'Daily task completed';
       } else if (taskType === 'fix') {
         // Fix tasks are verified by default (user opening link is verification)
         isVerified = true;
@@ -3857,7 +3834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 💸 <b>New Withdrawal Request</b>
 
 • <b>User:</b> @${newWithdrawal.username || 'Unknown'} (${userId.substring(0, 8)})
-• <b>Amount:</b> ${newWithdrawal.withdrawnAmount.toFixed(4)} TON
+• <b>Amount:</b> ${newWithdrawal.withdrawnAmountMGB.toLocaleString()} MGB
 • <b>Wallet:</b> ${newWithdrawal.withdrawal.details?.paymentDetails || 'N/A'}
 • <b>Time:</b> ${new Date().toUTCString()}
       `.trim();

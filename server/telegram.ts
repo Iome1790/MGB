@@ -286,7 +286,7 @@ export function formatWelcomeMessage(telegramId?: string): { message: string; in
   const isAdminUser = telegramId ? isAdmin(telegramId) : false;
   
   if (isAdminUser) {
-    const message = `⚙️ Admin Control Panel`;
+    const message = `👋 Welcome Admin!`;
     
     const inlineKeyboard = {
       inline_keyboard: [
@@ -300,12 +300,6 @@ export function formatWelcomeMessage(telegramId?: string): { message: string; in
           {
             text: "📢 Advertise",
             callback_data: "admin_advertise"
-          }
-        ],
-        [
-          {
-            text: "🔄 Refresh",
-            callback_data: "refresh_stats"
           }
         ]
       ]
@@ -388,156 +382,7 @@ export async function handleTelegramMessage(update: any): Promise<boolean> {
       const chatId = callbackQuery.from.id.toString();
       const data = callbackQuery.data;
       
-      if (data === 'refresh_stats' && isAdmin(chatId)) {
-        try {
-          const stats = await storage.getAppStats();
-          
-          const statsMessage = `⚙️ Admin Control Panel\n\n📊 Application Stats\n\n👥 Total Registered Users: ${stats.totalUsers.toLocaleString()}\n👤 Active Users Today: ${stats.activeUsersToday}\n🔗 Total Friends Invited: ${stats.totalInvites.toLocaleString()}\n\n💰 Total Earnings (All Users): $${parseFloat(stats.totalEarnings).toFixed(2)}\n💎 Total Referral Earnings: $${parseFloat(stats.totalReferralEarnings).toFixed(2)}\n🏦 Total Payouts: $${parseFloat(stats.totalPayouts).toFixed(2)}\n\n🚀 Growth (Last 24h): +${stats.newUsersLast24h} new users`;
-          
-          const adminButtons = {
-            inline_keyboard: [
-              [
-                {
-                  text: "🕓 Pending Withdrawal",
-                  callback_data: "admin_pending_withdrawals"
-                }
-              ],
-              [
-                {
-                  text: "📢 Advertise",
-                  callback_data: "admin_advertise"
-                }
-              ],
-              [
-                {
-                  text: "🔄 Refresh",
-                  callback_data: "refresh_stats"
-                }
-              ]
-            ]
-          };
-          
-          // Answer callback query and edit message
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ callback_query_id: callbackQuery.id })
-          });
-          
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatId,
-              message_id: callbackQuery.message.message_id,
-              text: statsMessage,
-              parse_mode: 'HTML',
-              reply_markup: adminButtons
-            })
-          });
-        } catch (error) {
-          console.error('❌ Error refreshing stats:', error);
-        }
-      }
       
-      // Handle admin panel refresh button
-      if (data === 'admin_refresh' && isAdmin(chatId)) {
-        try {
-          const { db } = await import('./db');
-          const { sql } = await import('drizzle-orm');
-          const { users, earnings, withdrawals, advertiserTasks } = await import('../shared/schema');
-          
-          const totalUsersCount = await db.select({ count: sql<number>`count(*)` }).from(users);
-          const dailyActiveCount = await db.select({ count: sql<number>`count(distinct ${earnings.userId})` }).from(earnings).where(sql`DATE(${earnings.createdAt}) = CURRENT_DATE`);
-          const totalAdsSum = await db.select({ total: sql<number>`COALESCE(SUM(${users.adsWatched}), 0)` }).from(users);
-          const todayAdsSum = await db.select({ total: sql<number>`COALESCE(SUM(${users.adsWatchedToday}), 0)` }).from(users);
-          const yesterdayAdsQuery = await db.execute(sql`SELECT COALESCE(SUM(ads_watched_today), 0) as total FROM users WHERE last_ad_date::date = CURRENT_DATE - INTERVAL '1 day'`);
-          const totalPADSum = await db.select({ total: sql<string>`COALESCE(SUM(${users.totalEarned}), '0')` }).from(users);
-          const todayPADQuery = await db.execute(sql`SELECT COALESCE(SUM(total_earned), '0') as total FROM users WHERE DATE(updated_at) = CURRENT_DATE`);
-          const yesterdayPADQuery = await db.execute(sql`SELECT COALESCE(SUM(total_earned), '0') as total FROM users WHERE DATE(updated_at) = CURRENT_DATE - INTERVAL '1 day'`);
-          const totalPayoutsSum = await db.select({ total: sql<string>`COALESCE(SUM(${withdrawals.amount}), '0')` }).from(withdrawals).where(sql`${withdrawals.status} IN ('completed', 'success', 'paid', 'Approved')`);
-          const todayPayoutsSum = await db.select({ total: sql<string>`COALESCE(SUM(${withdrawals.amount}), '0')` }).from(withdrawals).where(sql`${withdrawals.status} IN ('completed', 'success', 'paid', 'Approved') AND DATE(${withdrawals.updatedAt}) = CURRENT_DATE`);
-          const yesterdayPayoutsSum = await db.select({ total: sql<string>`COALESCE(SUM(${withdrawals.amount}), '0')` }).from(withdrawals).where(sql`${withdrawals.status} IN ('completed', 'success', 'paid', 'Approved') AND DATE(${withdrawals.updatedAt}) = CURRENT_DATE - INTERVAL '1 day'`);
-          const totalTasksCount = await db.select({ count: sql<number>`count(*)` }).from(advertiserTasks);
-          const todayTasksCount = await db.select({ count: sql<number>`count(*)` }).from(advertiserTasks).where(sql`DATE(${advertiserTasks.createdAt}) = CURRENT_DATE`);
-          const yesterdayTasksCount = await db.select({ count: sql<number>`count(*)` }).from(advertiserTasks).where(sql`DATE(${advertiserTasks.createdAt}) = CURRENT_DATE - INTERVAL '1 day'`);
-          const pendingWithdrawalsCount = await db.select({ count: sql<number>`count(*)` }).from(withdrawals).where(sql`${withdrawals.status} = 'pending'`);
-          const approvedWithdrawalsCount = await db.select({ count: sql<number>`count(*)` }).from(withdrawals).where(sql`${withdrawals.status} IN ('completed', 'success', 'paid', 'Approved')`);
-          const rejectedWithdrawalsCount = await db.select({ count: sql<number>`count(*)` }).from(withdrawals).where(sql`${withdrawals.status} = 'rejected'`);
-          
-          const totalUsers = totalUsersCount[0]?.count || 0;
-          const activeUsers = dailyActiveCount[0]?.count || 0;
-          const totalAds = totalAdsSum[0]?.total || 0;
-          const todayAds = todayAdsSum[0]?.total || 0;
-          const yesterdayAds = (yesterdayAdsQuery.rows[0] as any)?.total || 0;
-          const totalPAD = Math.round(parseFloat(totalPADSum[0]?.total || '0') * 100000);
-          const todayPAD = Math.round(parseFloat((todayPADQuery.rows[0] as any)?.total || '0') * 100000);
-          const yesterdayPAD = Math.round(parseFloat((yesterdayPADQuery.rows[0] as any)?.total || '0') * 100000);
-          const totalPayouts = formatTON(totalPayoutsSum[0]?.total || '0');
-          const todayPayouts = formatTON(todayPayoutsSum[0]?.total || '0');
-          const yesterdayPayouts = formatTON(yesterdayPayoutsSum[0]?.total || '0');
-          const totalTasks = totalTasksCount[0]?.count || 0;
-          const todayTasks = todayTasksCount[0]?.count || 0;
-          const yesterdayTasks = yesterdayTasksCount[0]?.count || 0;
-          const pendingRequests = pendingWithdrawalsCount[0]?.count || 0;
-          const approvedRequests = approvedWithdrawalsCount[0]?.count || 0;
-          const rejectedRequests = rejectedWithdrawalsCount[0]?.count || 0;
-          
-          const adminPanelMessage = `⚙️ <b>Admin Control Panel</b>\n\n` +
-            `<b>📊 𝗔𝗣𝗣 𝗗𝗔𝗦𝗛𝗕𝗢𝗔𝗥𝗗</b>\n` +
-            `Total Users: ${totalUsers}\n` +
-            `Active Users: ${activeUsers}\n\n` +
-            `<b>🎬 AD ANALYSIS</b>\n` +
-            `Total Ads: ${totalAds}\n` +
-            `Today Ads: ${todayAds}\n` +
-            `Yesterday Ads: ${yesterdayAds}\n\n` +
-            `<b>📈 PLATFORM EARNING</b>\n` +
-            `Total PAD: ${totalPAD}\n` +
-            `Today PAD: ${todayPAD}\n` +
-            `Yesterday PAD: ${yesterdayPAD}\n\n` +
-            `<b>💸 WITHDRAWN</b>\n` +
-            `Total Payouts: ${totalPayouts} TON\n` +
-            `Today Payouts: ${todayPayouts} TON\n` +
-            `Yesterday Payouts: ${yesterdayPayouts} TON\n\n` +
-            `<b>📑 TASK CREATED</b>\n` +
-            `Total tasks: ${totalTasks}\n` +
-            `Today tasks: ${todayTasks}\n` +
-            `Yesterday tasks: ${yesterdayTasks}\n\n` +
-            `<b>🏦 𝗧𝗢𝗧𝗔𝗟 𝗥𝗘𝗤𝗨𝗘𝗦𝗧𝗦</b>\n` +
-            `Approved: ${approvedRequests}\n` +
-            `Rejected: ${rejectedRequests}\n` +
-            `Pending: ${pendingRequests}`;
-          
-          // Answer callback query and edit message
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ callback_query_id: callbackQuery.id, text: '🔄 Refreshed' })
-          });
-          
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatId,
-              message_id: callbackQuery.message.message_id,
-              text: adminPanelMessage,
-              parse_mode: 'HTML',
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '💰 Pending Withdrawals', callback_data: 'admin_pending_withdrawals' }],
-                  [{ text: '🔔 Announcement', callback_data: 'admin_announce' }],
-                  [{ text: '📊 Advertise', callback_data: 'admin_advertise' }],
-                  [{ text: '🔄 Refresh', callback_data: 'admin_refresh' }]
-                ]
-              }
-            })
-          });
-        } catch (error) {
-          console.error('❌ Error refreshing admin panel:', error);
-        }
-        return true;
-      }
       
       // Handle admin advertise button - sends plain promotional messages without inline buttons
       if (data === 'admin_advertise' && isAdmin(chatId)) {
@@ -613,14 +458,16 @@ export async function handleTelegramMessage(update: any): Promise<boolean> {
           // Send each withdrawal as a separate message with approve/reject buttons
           for (const { withdrawal, user } of displayWithdrawals) {
             const withdrawalDetails = withdrawal.details as any;
-            const amount = formatTON(withdrawal.amount);
+            // Convert TON to MGB for display (1 TON = 5,000,000 MGB)
+            const amountInTON = parseFloat(withdrawal.amount);
+            const amountInMGB = Math.round(amountInTON * 5000000);
             const walletAddress = withdrawalDetails?.paymentDetails || 'N/A';
             const username = user?.username || user?.firstName || 'Unknown';
             const createdAt = new Date(withdrawal.createdAt!).toUTCString();
             
             const message = `💰 <b>Withdrawal Request</b>\n\n` +
               `<b>User:</b> ${username}\n` +
-              `<b>Amount:</b> ${amount} TON\n` +
+              `<b>Amount:</b> ${amountInMGB.toLocaleString()} MGB\n` +
               `<b>Method:</b> ${withdrawal.method}\n` +
               `<b>Wallet:</b> ${walletAddress}\n` +
               `<b>Created:</b> ${createdAt}\n` +
@@ -1221,108 +1068,6 @@ export async function handleTelegramMessage(update: any): Promise<boolean> {
       }
       
       return true;
-    }
-    
-    // Handle /szxzyz command - Admin Control Panel
-    if (text === '/szxzyz') {
-      if (!isAdmin(chatId)) {
-        // Non-admin users get redirected to /start
-        await sendUserTelegramNotification(chatId, 'Please use /start');
-        return true;
-      }
-      
-      // Fetch admin statistics from the database
-      try {
-        const { db } = await import('./db');
-        const { sql } = await import('drizzle-orm');
-        const { users, earnings, withdrawals, advertiserTasks } = await import('../shared/schema');
-        
-        const totalUsersCount = await db.select({ count: sql<number>`count(*)` }).from(users);
-        const dailyActiveCount = await db.select({ count: sql<number>`count(distinct ${earnings.userId})` }).from(earnings).where(sql`DATE(${earnings.createdAt}) = CURRENT_DATE`);
-        const totalAdsSum = await db.select({ total: sql<number>`COALESCE(SUM(${users.adsWatched}), 0)` }).from(users);
-        const todayAdsSum = await db.select({ total: sql<number>`COALESCE(SUM(${users.adsWatchedToday}), 0)` }).from(users);
-        const yesterdayAdsQuery = await db.execute(sql`SELECT COALESCE(SUM(ads_watched_today), 0) as total FROM users WHERE last_ad_date::date = CURRENT_DATE - INTERVAL '1 day'`);
-        const totalPADSum = await db.select({ total: sql<string>`COALESCE(SUM(${users.totalEarned}), '0')` }).from(users);
-        const todayPADQuery = await db.execute(sql`SELECT COALESCE(SUM(total_earned), '0') as total FROM users WHERE DATE(updated_at) = CURRENT_DATE`);
-        const yesterdayPADQuery = await db.execute(sql`SELECT COALESCE(SUM(total_earned), '0') as total FROM users WHERE DATE(updated_at) = CURRENT_DATE - INTERVAL '1 day'`);
-        const totalPayoutsSum = await db.select({ total: sql<string>`COALESCE(SUM(${withdrawals.amount}), '0')` }).from(withdrawals).where(sql`${withdrawals.status} IN ('completed', 'success', 'paid', 'Approved')`);
-        const todayPayoutsSum = await db.select({ total: sql<string>`COALESCE(SUM(${withdrawals.amount}), '0')` }).from(withdrawals).where(sql`${withdrawals.status} IN ('completed', 'success', 'paid', 'Approved') AND DATE(${withdrawals.updatedAt}) = CURRENT_DATE`);
-        const yesterdayPayoutsSum = await db.select({ total: sql<string>`COALESCE(SUM(${withdrawals.amount}), '0')` }).from(withdrawals).where(sql`${withdrawals.status} IN ('completed', 'success', 'paid', 'Approved') AND DATE(${withdrawals.updatedAt}) = CURRENT_DATE - INTERVAL '1 day'`);
-        const totalTasksCount = await db.select({ count: sql<number>`count(*)` }).from(advertiserTasks);
-        const todayTasksCount = await db.select({ count: sql<number>`count(*)` }).from(advertiserTasks).where(sql`DATE(${advertiserTasks.createdAt}) = CURRENT_DATE`);
-        const yesterdayTasksCount = await db.select({ count: sql<number>`count(*)` }).from(advertiserTasks).where(sql`DATE(${advertiserTasks.createdAt}) = CURRENT_DATE - INTERVAL '1 day'`);
-        const pendingWithdrawalsCount = await db.select({ count: sql<number>`count(*)` }).from(withdrawals).where(sql`${withdrawals.status} = 'pending'`);
-        const approvedWithdrawalsCount = await db.select({ count: sql<number>`count(*)` }).from(withdrawals).where(sql`${withdrawals.status} IN ('completed', 'success', 'paid', 'Approved')`);
-        const rejectedWithdrawalsCount = await db.select({ count: sql<number>`count(*)` }).from(withdrawals).where(sql`${withdrawals.status} = 'rejected'`);
-        
-        const totalUsers = totalUsersCount[0]?.count || 0;
-        const activeUsers = dailyActiveCount[0]?.count || 0;
-        const totalAds = totalAdsSum[0]?.total || 0;
-        const todayAds = todayAdsSum[0]?.total || 0;
-        const yesterdayAds = (yesterdayAdsQuery.rows[0] as any)?.total || 0;
-        const totalPAD = Math.round(parseFloat(totalPADSum[0]?.total || '0') * 100000);
-        const todayPAD = Math.round(parseFloat((todayPADQuery.rows[0] as any)?.total || '0') * 100000);
-        const yesterdayPAD = Math.round(parseFloat((yesterdayPADQuery.rows[0] as any)?.total || '0') * 100000);
-        const totalPayouts = formatTON(totalPayoutsSum[0]?.total || '0');
-        const todayPayouts = formatTON(todayPayoutsSum[0]?.total || '0');
-        const yesterdayPayouts = formatTON(yesterdayPayoutsSum[0]?.total || '0');
-        const totalTasks = totalTasksCount[0]?.count || 0;
-        const todayTasks = todayTasksCount[0]?.count || 0;
-        const yesterdayTasks = yesterdayTasksCount[0]?.count || 0;
-        const pendingRequests = pendingWithdrawalsCount[0]?.count || 0;
-        const approvedRequests = approvedWithdrawalsCount[0]?.count || 0;
-        const rejectedRequests = rejectedWithdrawalsCount[0]?.count || 0;
-        
-        const adminPanelMessage = `⚙️ <b>Admin Control Panel</b>\n\n` +
-          `<b>📊 𝗔𝗣𝗣 𝗗𝗔𝗦𝗛𝗕𝗢𝗔𝗥𝗗</b>\n` +
-          `Total Users: ${totalUsers}\n` +
-          `Active Users: ${activeUsers}\n\n` +
-          `<b>🎬 AD ANALYSIS</b>\n` +
-          `Total Ads: ${totalAds}\n` +
-          `Today Ads: ${todayAds}\n` +
-          `Yesterday Ads: ${yesterdayAds}\n\n` +
-          `<b>📈 PLATFORM EARNING</b>\n` +
-          `Total PAD: ${totalPAD}\n` +
-          `Today PAD: ${todayPAD}\n` +
-          `Yesterday PAD: ${yesterdayPAD}\n\n` +
-          `<b>💸 WITHDRAWN</b>\n` +
-          `Total Payouts: ${totalPayouts} TON\n` +
-          `Today Payouts: ${todayPayouts} TON\n` +
-          `Yesterday Payouts: ${yesterdayPayouts} TON\n\n` +
-          `<b>📑 TASK CREATED</b>\n` +
-          `Total tasks: ${totalTasks}\n` +
-          `Today tasks: ${todayTasks}\n` +
-          `Yesterday tasks: ${yesterdayTasks}\n\n` +
-          `<b>🏦 𝗧𝗢𝗧𝗔𝗟 𝗥𝗘𝗤𝗨𝗘𝗦𝗧𝗦</b>\n` +
-          `Approved: ${approvedRequests}\n` +
-          `Rejected: ${rejectedRequests}\n` +
-          `Pending: ${pendingRequests}`;
-        
-        // Send message with inline buttons (vertically arranged)
-        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: adminPanelMessage,
-            parse_mode: 'HTML',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '💰 Pending Withdrawals', callback_data: 'admin_pending_withdrawals' }],
-                [{ text: '🔔 Announcement', callback_data: 'admin_announce' }],
-                [{ text: '📊 Advertise', callback_data: 'admin_advertise' }],
-                [{ text: '🔄 Refresh', callback_data: 'admin_refresh' }]
-              ]
-            }
-          })
-        });
-        
-        return true;
-      } catch (error) {
-        console.error('Error handling /szxzyz command:', error);
-        await sendUserTelegramNotification(chatId, '❌ Error loading admin panel. Please try again.');
-        return true;
-      }
     }
     
     // Handle /start command with referral processing and promotion claims
