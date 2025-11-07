@@ -1,5 +1,5 @@
 export const APP_VERSION = "1.0.0";
-export const MGB_TO_TON = 5000000; // ✅ 5,000,000 MGB = 1 TON (500,000 MGB = 0.1 TON)
+export const MGB_TO_TON = 500000; // ✅ 500,000 MGB = 1 TON (50,000 MGB = 0.1 TON)
 export const MGB_TO_USD = 100000; // Legacy: kept for compatibility
 export const APP_COLORS = {
   primary: "#4aa8ff", // light blue
@@ -10,7 +10,7 @@ export const APP_COLORS = {
 /**
  * Convert TON to MGB
  * @param tonAmount - Amount in TON (string or number)
- * @returns Amount in MGB (TON * 5,000,000)
+ * @returns Amount in MGB (TON * 500,000)
  */
 export function tonToMGB(tonAmount: number | string): number {
   const numValue = typeof tonAmount === 'string' ? parseFloat(tonAmount) : tonAmount;
@@ -20,7 +20,7 @@ export function tonToMGB(tonAmount: number | string): number {
 /**
  * Convert MGB to TON
  * @param mgbAmount - Amount in MGB
- * @returns Amount in TON (MGB / 5,000,000)
+ * @returns Amount in TON (MGB / 500,000)
  */
 export function mgbToTON(mgbAmount: number | string): number {
   const numValue = typeof mgbAmount === 'string' ? parseFloat(mgbAmount) : mgbAmount;
