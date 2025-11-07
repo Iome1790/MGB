@@ -4,6 +4,31 @@ CashWatch is a React-based web application designed for users to earn cryptocurr
 
 # Recent Changes (November 7, 2025)
 
+## GitHub Import Setup & Reward System Fixes (November 7, 2025 - Latest)
+- **Replit Environment Setup Completed**:
+  - Installed all Node.js dependencies via npm
+  - Configured development workflow on port 5000 with webview
+  - Server running successfully with all database migrations applied
+  - Vite dev server configured with proper host settings (0.0.0.0, allowedHosts: true)
+- **Completely Removed Channel Join Verification**:
+  - Deleted `/api/streak/check-membership` endpoint from `server/routes.ts`
+  - Removed all channel verification logic from `/api/streak/claim` endpoint
+  - Users now receive rewards directly without needing to join Telegram channels
+  - Simple flow: Start Task → Check → Reward Credit (no verification)
+- **Fixed Hardcoded Task Rewards to Use Admin Settings**:
+  - Changed `TASK_CONFIG` in `server/storage.ts` from static constant to dynamic method `getTaskConfig()`
+  - Daily task rewards now fetched from `reward_per_ad` admin setting instead of hardcoded 0.00033000 TON
+  - When admin updates `reward_per_ad` in admin panel, all new daily tasks use that value
+  - Conversion: reward_per_ad (MGB) / 5,000,000 = reward in TON
+- **Verified Default Fallback Values**:
+  - `reward_per_ad` default: 1000 MGB (used only if admin setting not configured)
+  - `task_per_click_reward` default: 0.0001750 TON = 875 MGB (for advertiser tasks)
+  - `task_reward_pad` default: 200 (display padding, not actual reward amount)
+- **Deployment Configuration**:
+  - Configured deployment target as `vm` for stateful bot application
+  - Build command: `npm run build`
+  - Start command: `npm start`
+
 ## Telegram Bot Withdrawal Display Fixes (November 7, 2025)
 - **Fixed Withdrawal Double Amount Bug**: 
   - Updated new withdrawal notification in `server/routes.ts` to display correct MGB amount instead of using undefined variable
