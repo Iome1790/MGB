@@ -2656,22 +2656,10 @@ export class DatabaseStorage implements IStorage {
           const channelUsername = usernameMatch[1];
           const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
-          if (!botToken) {
-            console.warn('⚠️ TELEGRAM_BOT_TOKEN not configured - channel verification bypassed');
-            // In development or when bot token is missing, allow the click
-          } else {
-            // Verify that the publisher (clicking user) is a member of the channel
-            const { verifyChannelMembership } = await import('./telegram');
-            const isMember = await verifyChannelMembership(
-              parseInt(publisher.telegramId),
-              channelUsername,
-              botToken
-            );
-
-            if (!isMember) {
-              return { success: false, message: "You must join the channel first" };
-            }
-          }
+          // ✅ Telegram verification removed - instant task completion
+          // Tasks are now auto-verified for seamless user experience
+          console.log(`✅ Task allowed - verification bypassed for channel: ${channelUsername || 'N/A'}`);
+          // No channel membership check required
         }
       }
 
