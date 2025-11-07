@@ -773,87 +773,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Check channel membership endpoint
-  app.get('/api/streak/check-membership', authenticateTelegram, async (req: any, res) => {
-    try {
-      const telegramId = req.user.user.telegram_id;
-      const botToken = process.env.TELEGRAM_BOT_TOKEN;
-      
-      if (!botToken) {
-        if (process.env.NODE_ENV === 'development') {
-          return res.json({ 
-            success: true,
-            isMember: true,
-            channelUsername: config.telegram.channelId,
-            channelUrl: config.telegram.channelUrl,
-            message: 'Development mode: membership check bypassed'
-          });
-        }
-        
-        console.error('❌ TELEGRAM_BOT_TOKEN not configured');
-        return res.status(500).json({ 
-          success: false,
-          isMember: false, 
-          message: 'Channel verification is temporarily unavailable. Please try again later.',
-          error_code: 'VERIFICATION_UNAVAILABLE'
-        });
-      }
-      
-      // Check membership for configured channel
-      const isMember = await verifyChannelMembership(
-        parseInt(telegramId), 
-        config.telegram.channelId, 
-        botToken
-      );
-      
-      res.json({ 
-        success: true,
-        isMember,
-        channelUsername: config.telegram.channelId,
-        channelUrl: config.telegram.channelUrl
-      });
-    } catch (error) {
-      console.error("Error checking channel membership:", error);
-      res.json({ 
-        success: false,
-        isMember: false,
-        message: 'Unable to verify channel membership. Please make sure you have joined the channel and try again.',
-        error_code: 'VERIFICATION_ERROR'
-      });
-    }
-  });
-
-  // Streak claim endpoint
+  // Channel verification removed - users get rewards directly without joining requirement
+  
+  // Streak claim endpoint - simplified without channel verification
   app.post('/api/streak/claim', authenticateTelegram, async (req: any, res) => {
     try {
       const userId = req.user.user.id;
-      const telegramId = req.user.user.telegram_id;
-      const botToken = process.env.TELEGRAM_BOT_TOKEN;
-      
-      // Verify channel membership before allowing claim
-      if (botToken) {
-        const isMember = await verifyChannelMembership(
-          parseInt(telegramId), 
-          config.telegram.channelId, 
-          botToken
-        );
-        
-        if (!isMember) {
-          return res.status(403).json({ 
-            success: false,
-            message: 'Please join our Telegram channel first to claim your daily streak reward.',
-            requiresChannelJoin: true,
-            channelUsername: config.telegram.channelId,
-            channelUrl: config.telegram.channelUrl
-          });
-        }
-      } else if (process.env.NODE_ENV !== 'development') {
-        return res.status(500).json({ 
-          success: false,
-          message: 'Channel verification is temporarily unavailable. Please try again later.',
-          error_code: 'VERIFICATION_UNAVAILABLE'
-        });
-      }
       
       const result = await storage.updateUserStreak(userId);
       

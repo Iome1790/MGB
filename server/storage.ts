@@ -2217,18 +2217,26 @@ export class DatabaseStorage implements IStorage {
 
   // ===== NEW SIMPLE TASK SYSTEM =====
   
-  // Fixed task configuration for the 9 sequential ads-based tasks
-  private readonly TASK_CONFIG = [
-    { level: 1, required: 20, reward: "0.00033000" },
-    { level: 2, required: 20, reward: "0.00033000" },
-    { level: 3, required: 20, reward: "0.00033000" },
-    { level: 4, required: 20, reward: "0.00033000" },
-    { level: 5, required: 20, reward: "0.00033000" },
-    { level: 6, required: 20, reward: "0.00033000" },
-    { level: 7, required: 20, reward: "0.00033000" },
-    { level: 8, required: 20, reward: "0.00033000" },
-    { level: 9, required: 20, reward: "0.00033000" },
-  ];
+  // Get task configuration dynamically from admin settings
+  private async getTaskConfig() {
+    // Fetch reward from admin settings (reward_per_ad is in MGB, convert to TON)
+    const rewardPerAdSetting = await db.select().from(adminSettings).where(eq(adminSettings.settingKey, 'reward_per_ad')).limit(1);
+    const rewardPerAdMGB = parseInt(rewardPerAdSetting[0]?.settingValue || '1000');
+    const rewardPerAdTON = (rewardPerAdMGB / 5000000).toFixed(8);
+    
+    // Return 9 sequential ads-based tasks with dynamic reward from admin settings
+    return [
+      { level: 1, required: 20, reward: rewardPerAdTON },
+      { level: 2, required: 20, reward: rewardPerAdTON },
+      { level: 3, required: 20, reward: rewardPerAdTON },
+      { level: 4, required: 20, reward: rewardPerAdTON },
+      { level: 5, required: 20, reward: rewardPerAdTON },
+      { level: 6, required: 20, reward: rewardPerAdTON },
+      { level: 7, required: 20, reward: rewardPerAdTON },
+      { level: 8, required: 20, reward: rewardPerAdTON },
+      { level: 9, required: 20, reward: rewardPerAdTON },
+    ];
+  }
 
   // Get current reset date in YYYY-MM-DD format (resets at 00:00 UTC)
   private getCurrentResetDate(): string {
@@ -2250,9 +2258,10 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(dailyTasks.taskLevel);
 
-    // If no tasks exist for today, create them
+    // If no tasks exist for today, create them with dynamic reward from admin settings
     if (existingTasks.length === 0) {
-      const tasksToInsert: InsertDailyTask[] = this.TASK_CONFIG.map(config => ({
+      const taskConfig = await this.getTaskConfig();
+      const tasksToInsert: InsertDailyTask[] = taskConfig.map(config => ({
         userId,
         taskLevel: config.level,
         progress: 0,
