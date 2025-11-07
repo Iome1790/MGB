@@ -446,7 +446,7 @@ export default function Wallet() {
             <Card className="neon-glow-border shadow-lg">
               <CardHeader className="py-3">
                 <CardTitle className="text-base font-medium">Withdraw funds</CardTitle>
-                <CardDescription className="text-xs">Minimum 500,000 MGB = 0.1 TON<br />5,000,000 MGB = 1 TON</CardDescription>
+                <CardDescription className="text-xs">Minimum 50,000 = 0.1 TON<br />500,000 = 1 TON</CardDescription>
               </CardHeader>
               
               <CardContent className="p-4 pt-2">

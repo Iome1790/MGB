@@ -810,14 +810,14 @@ function SettingsSection() {
   // Update form when settings data loads
   useEffect(() => {
     if (settingsData) {
-      // Convert minimum withdrawal from TON to MGB for display (TON * 5,000,000)
+      // Convert minimum withdrawal from TON to MGB for display
       const minWithdrawalMGB = settingsData.minimumWithdrawal 
-        ? Math.round(settingsData.minimumWithdrawal * 5000000)
-        : 2500000;
+        ? Math.round(settingsData.minimumWithdrawal * MGB_TO_TON)
+        : 50000;
       
       setSettings({
         dailyAdLimit: settingsData.dailyAdLimit?.toString() || '50',
-        rewardPerAd: settingsData.rewardPerAd?.toString() || '1000',
+        rewardPerAd: settingsData.rewardPerAd?.toString() || '100',
         minimumWithdrawal: minWithdrawalMGB.toString(),
         taskPerClickReward: settingsData.taskPerClickReward?.toString() || '0.0001750',
         taskCreationCost: settingsData.taskCreationCost?.toString() || '0.0003'
@@ -850,8 +850,8 @@ function SettingsSection() {
       return;
     }
     
-    // Convert minimum withdrawal from MGB to TON for backend (MGB / 5,000,000)
-    const minWithdrawalTON = minWithdrawalMGB / 5000000;
+    // Convert minimum withdrawal from MGB to TON for backend
+    const minWithdrawalTON = minWithdrawalMGB / MGB_TO_TON;
     
     setIsSaving(true);
     try {
@@ -976,7 +976,7 @@ function SettingsSection() {
               className="text-lg font-semibold"
             />
             <p className="text-xs text-muted-foreground">
-              Current: {settingsData?.minimumWithdrawal ? Math.round(settingsData.minimumWithdrawal * 5000000).toLocaleString() : '2,500,000'} MGB
+              Current: {settingsData?.minimumWithdrawal ? Math.round(settingsData.minimumWithdrawal * MGB_TO_TON).toLocaleString() : '50,000'} MGB
             </p>
           </div>
 
