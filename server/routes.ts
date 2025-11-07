@@ -706,14 +706,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (commissionInfo && commissionInfo.referrerId) {
           try {
             sendRealtimeUpdate(commissionInfo.referrerId, {
-              type: 'referral_commission',
+              type: 'referral_income',
               data: {
                 amount: commissionInfo.commission,
-                pendingBonus: commissionInfo.newPending,
-                from: user.firstName || user.username || 'User'
+                amountMGB: commissionInfo.commissionMGB,
+                from: commissionInfo.referredUsername || user.firstName || user.username || 'Friend',
+                message: `You earned ${commissionInfo.commissionMGB?.toLocaleString()} MGB from your referral's ad activity!`
               }
             });
-            console.log(`📤 Sent referral commission update to ${commissionInfo.referrerId}: ${commissionInfo.commission} (new pending: ${commissionInfo.newPending})`);
+            console.log(`📤 REFERRAL INCOME: Sent ${commissionInfo.commissionMGB?.toLocaleString()} MGB notification to ${commissionInfo.referrerId} from ${commissionInfo.referredUsername}'s ad watch`);
           } catch (updateError) {
             // Don't fail the request if WebSocket update fails
             console.error("⚠️ Failed to send referral commission update (non-critical):", updateError);
@@ -863,24 +864,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ 
           success: true, 
           skipAuth: true, 
+          referralCount: 0,
           totalInvites: 0, 
           totalClaimed: '0', 
           availableBonus: '0', 
-          readyToClaim: '0' 
+          readyToClaim: '0',
+          referralEarnings: '0',
+          level1Earnings: '0'
         });
       }
       const user = await storage.getUser(userId);
       const referrals = await storage.getUserReferrals(userId);
+      const referralEarnings = await storage.getUserReferralEarnings(userId);
+      const referralEarningsByLevel = await storage.getUserReferralEarningsByLevel(userId);
       
       res.json({
-        totalInvites: referrals.length,
+        referralCount: user?.friendsInvited || referrals.length,
+        totalInvites: user?.friendsInvited || referrals.length,
         totalClaimed: user?.totalClaimedReferralBonus || '0',
         availableBonus: user?.pendingReferralBonus || '0',
         readyToClaim: user?.pendingReferralBonus || '0',
+        referralEarnings: referralEarnings,
+        level1Earnings: referralEarningsByLevel.level1
       });
     } catch (error) {
       console.error("Error fetching referral stats:", error);
       res.status(500).json({ message: "Failed to fetch referral stats" });
+    }
+  });
+
+  // Referrals list endpoint - returns list of referred users with their details
+  app.get('/api/referrals/list', async (req: any, res) => {
+    try {
+      const userId = req.session?.user?.user?.id || req.user?.user?.id;
+      
+      if (!userId) {
+        console.log('⚠️ Referrals list requested without session - sending empty response');
+        return res.json([]);
+      }
+      
+      const referralsList = await storage.getUserReferralsWithDetails(userId);
+      res.json(referralsList);
+    } catch (error) {
+      console.error("Error fetching referrals list:", error);
+      res.status(500).json({ message: "Failed to fetch referrals list" });
     }
   });
 

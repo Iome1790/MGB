@@ -953,6 +953,38 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(referrals.createdAt));
   }
 
+  async getUserReferralsWithDetails(userId: string): Promise<any[]> {
+    const referralsList = await db
+      .select({
+        id: referrals.id,
+        referredUserId: referrals.refereeId,
+        createdAt: referrals.createdAt,
+        status: referrals.status,
+      })
+      .from(referrals)
+      .where(eq(referrals.referrerId, userId))
+      .orderBy(desc(referrals.createdAt));
+    
+    const referralsWithUserData = await Promise.all(
+      referralsList.map(async (referral) => {
+        const referredUser = await this.getUser(referral.referredUserId);
+        return {
+          id: referral.id,
+          referredUserId: referral.referredUserId,
+          referredUser: {
+            firstName: referredUser?.firstName,
+            username: referredUser?.username,
+            totalEarned: referredUser?.totalEarned || '0',
+          },
+          createdAt: referral.createdAt,
+          status: referral.status,
+        };
+      })
+    );
+    
+    return referralsWithUserData;
+  }
+
   async getUserByReferralCode(referralCode: string): Promise<User | null> {
     const [user] = await db.select().from(users).where(eq(users.referralCode, referralCode)).limit(1);
     return user || null;
@@ -1243,8 +1275,8 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  // Process referral commission (10% for direct referrals only - stored as pending)
-  async processReferralCommission(userId: string, originalEarningId: number, earningAmount: string): Promise<{ referrerId?: string; commission?: string; newPending?: string }> {
+  // Process referral commission (10% for direct referrals - added instantly to balance in MGB)
+  async processReferralCommission(userId: string, originalEarningId: number, earningAmount: string): Promise<{ referrerId?: string; commission?: string; commissionMGB?: number; referredUsername?: string }> {
     try {
       // Only process commissions for ad watching earnings
       const [earning] = await db
@@ -1269,7 +1301,7 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
 
       if (level1Referral) {
-        // Calculate 10% commission for direct referrer (B)
+        // Calculate 10% commission for direct referrer
         const commission = (parseFloat(earningAmount) * 0.10).toFixed(8);
         
         // Record the referral commission
@@ -1280,36 +1312,61 @@ export class DatabaseStorage implements IStorage {
           commissionAmount: commission,
         });
 
-        // Add commission to pending referral bonus (NOT to balance directly)
-        const [referrer] = await db
-          .select({ pendingBonus: users.pendingReferralBonus })
-          .from(users)
-          .where(eq(users.id, level1Referral.referrerId))
-          .limit(1);
-        
-        const currentPending = parseFloat(referrer?.pendingBonus || '0');
-        const newPending = (currentPending + parseFloat(commission)).toFixed(8);
-        
+        // Get referred user info for notification
+        const referredUser = await this.getUser(userId);
+        const referredUsername = referredUser?.username || referredUser?.firstName || 'Friend';
+
+        // INSTANT REWARD: Add commission directly to referrer's balance
+        await db
+          .update(userBalances)
+          .set({
+            balance: sql`COALESCE(${userBalances.balance}, 0) + ${commission}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(userBalances.userId, level1Referral.referrerId));
+
+        // Keep users table in sync for compatibility
         await db
           .update(users)
-          .set({ 
-            pendingReferralBonus: newPending,
+          .set({
+            balance: sql`COALESCE(${users.balance}, 0) + ${commission}`,
+            withdrawBalance: sql`COALESCE(${users.withdrawBalance}, 0) + ${commission}`,
+            totalEarned: sql`COALESCE(${users.totalEarned}, 0) + ${commission}`,
+            totalEarnings: sql`COALESCE(${users.totalEarnings}, 0) + ${commission}`,
             updatedAt: new Date()
           })
           .where(eq(users.id, level1Referral.referrerId));
 
-        console.log(`✅ 10% commission of ${commission} added to pending bonus for ${level1Referral.referrerId} from ${userId}'s ad earnings`);
+        // Add earning record for referral commission
+        await db.insert(earnings).values({
+          userId: level1Referral.referrerId,
+          amount: commission,
+          source: 'referral_commission',
+          description: `10% commission from ${referredUsername}'s ad watch`,
+        });
+
+        // Log transaction
+        await this.logTransaction({
+          userId: level1Referral.referrerId,
+          amount: commission,
+          type: 'addition',
+          source: 'referral_commission',
+          description: `10% commission from ${referredUsername}'s ad watch`,
+        });
+
+        const commissionMGB = Math.round(parseFloat(commission) * 500000); // Convert TON to MGB
+
+        console.log(`✅ INSTANT REWARD: ${referredUsername} watched an ad — 10% MGB (${commissionMGB.toLocaleString()}) sent to referrer ${level1Referral.referrerId}`);
         
         // Return commission info for WebSocket notification
         return {
           referrerId: level1Referral.referrerId,
           commission,
-          newPending
+          commissionMGB,
+          referredUsername
         };
       }
       
-      // Notification disabled to prevent spam - users can claim bonuses in Affiliates page
-      // Commission is tracked in pendingReferralBonus and must be manually claimed
       return {};
     } catch (error) {
       console.error('Error processing referral commission:', error);
